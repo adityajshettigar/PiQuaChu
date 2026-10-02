@@ -2,17 +2,17 @@
 ![React](https://img.shields.io/badge/React-Vite-cyan?logo=react&logoColor=black)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Celery-009688?logo=fastapi&logoColor=white)
 
-# CipherSentinel 🛡️
+# PiQuaChu 🛡️
 
 > **Enterprise-grade Post-Quantum Cryptography (PQC) DevSecOps Pipeline.** Decentralized local scanning meets asynchronous AI threat analysis.
 
 ---
 
-## What Is CipherSentinel?
+## What Is PiQuaChu?
 
-CipherSentinel is an automated, AI-driven security analysis tool designed to bridge the gap between legacy cryptographic standards (RSA, ECC) and the impending threat of quantum computing. 
+PiQuaChu is an automated, AI-driven security analysis tool designed to bridge the gap between legacy cryptographic standards (RSA, ECC) and the impending threat of quantum computing. 
 
-Instead of forcing developers to upload sensitive source code to a centralized server, CipherSentinel utilizes a lightweight, zero-trust local CLI agent. This agent parses Abstract Syntax Trees (ASTs) directly on the developer's machine to find vulnerable cryptographic implementations, and securely transmits only the necessary telemetry to our central AI engine to generate FIPS-203 compliant migration plans.
+Instead of forcing developers to upload sensitive source code to a centralized server, PiQuaChu utilizes a lightweight, zero-trust local CLI agent. This agent parses Abstract Syntax Trees (ASTs) directly on the developer's machine to find vulnerable cryptographic implementations, and securely transmits only the necessary telemetry to our central AI engine to generate FIPS-203 compliant migration plans.
 
 ---
 
@@ -22,7 +22,7 @@ Instead of forcing developers to upload sensitive source code to a centralized s
 Developers can install the `cipher_cli.py` tool locally or integrate it directly into their CI/CD pipelines (like GitHub Actions). It finds vulnerabilities at the source and communicates securely with the Core Engine using long-lived API keys, ensuring proprietary code never leaves the local environment.
 
 ### 🧠 Asynchronous AI Remediation Engine
-CipherSentinel doesn't just flag deprecated algorithms; it tells you how to fix them. Using a concurrent LLM-powered engine (via Groq), it generates exact code replacements and architectural warnings. To handle high-volume enterprise traffic without blocking the main event loop, all AI analysis is offloaded to a **Celery** task queue backed by **Redis**.
+PiQuaChu doesn't just flag deprecated algorithms; it tells you how to fix them. Using a concurrent LLM-powered engine (via Groq), it generates exact code replacements and architectural warnings. To handle high-volume enterprise traffic without blocking the main event loop, all AI analysis is offloaded to a **Celery** task queue backed by **Redis**.
 
 ### 🛂 Dual-Auth API Gateway
 A true SOC tool separates human operators from machine agents:
@@ -148,7 +148,6 @@ Pull requests are welcome. For significant changes, open an issue first to discu
 
 [MIT](https://www.google.com/search?q=LICENSE)
 
-*Built by Aditya J Shettigar.*
 
 ```
 
