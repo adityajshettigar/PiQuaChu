@@ -1,42 +1,65 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* frontend/src/App.css */
+
+/* Brand mark — logo.png is a black-on-transparent asset, inverted here so it reads on the dark background */
+.brand-mark {
+  height: 44px;
+  width: 44px;
+  object-fit: contain;
+  display: block;
+  filter: invert(1);
+}
+.brand-mark[data-broken='true'] {
+  display: none;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Wordmark shown centered inside the QuantumFlux hero */
+.brand-word-hero {
+  height: 140px;
+  max-width: 70%;
+  object-fit: contain;
+  display: block;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* Legacy console dropzone: one warm hairline, no animated multicolour sweep.
+ * The Financial system keeps warm light local and static. */
+.hero-dropzone {
+  position: relative;
+}
+.hero-dropzone::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--primary);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.35;
+  pointer-events: none;
+  transition: opacity var(--dp-motion-interaction) var(--dp-motion-easing);
+}
+.hero-dropzone:hover::before {
+  opacity: 0.8;
+}
+
+.gauge-needle {
+  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: 100px 100px;
+}
+
+@media (max-width: 767px) {
+  .chakra-table__container {
+    overflow-x: auto;
   }
-  to {
-    transform: rotate(360deg);
+  .chakra-table td {
+    white-space: normal;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+@media (prefers-reduced-motion: reduce) {
+  .hero-dropzone::before,
+  .gauge-needle {
+    transition: none;
   }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
 }

@@ -1,0 +1,129 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:8782fb58-83b6-409a-ae39-73e4abb45f21",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-18T17:18:02.710208+00:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "PiQuaChu",
+          "version": "2.2.0",
+          "supplier": {
+            "name": "PiQuaChu"
+          }
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "04_fndsa_in_development.zip",
+      "bom-ref": "piquachu-project"
+    },
+    "properties": [
+      {
+        "name": "piquachu:pqc_score",
+        "value": "100"
+      },
+      {
+        "name": "piquachu:risk_score",
+        "value": "0"
+      },
+      {
+        "name": "piquachu:verdict",
+        "value": "incomplete"
+      },
+      {
+        "name": "piquachu:findings_count",
+        "value": "1"
+      },
+      {
+        "name": "piquachu:assessment_status",
+        "value": "static_discovery"
+      },
+      {
+        "name": "piquachu:standards_registry_reviewed",
+        "value": "2026-10-18"
+      },
+      {
+        "name": "piquachu:policy_findings_not_in_vulnerabilities",
+        "value": "1"
+      },
+      {
+        "name": "piquachu:cbom_spec_version",
+        "value": "1.7"
+      },
+      {
+        "name": "piquachu:scan_id",
+        "value": "4"
+      },
+      {
+        "name": "piquachu:assets_within_scope",
+        "value": "crypto-fn-dsa"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-fn-dsa",
+      "name": "FN-DSA",
+      "description": "Cryptographic asset observed by PiQuaChu static analysis. Discovery evidence, not a compliance certification.",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "parameterSetIdentifier": "Falcon-512",
+          "nistQuantumSecurityLevel": 1
+        }
+      },
+      "properties": [
+        {
+          "name": "piquachu:evidence_source",
+          "value": "static-source-pattern"
+        },
+        {
+          "name": "piquachu:limitations",
+          "value": "Pattern evidence only; not proof of runtime use, correct parameters, FIPS 140 validation, or organisation-wide compliance."
+        },
+        {
+          "name": "piquachu:rule_ids",
+          "value": "pqc-fndsa-python"
+        },
+        {
+          "name": "piquachu:nist_standard",
+          "value": "FIPS 206"
+        },
+        {
+          "name": "piquachu:standard_lifecycle",
+          "value": "in_development"
+        },
+        {
+          "name": "piquachu:evidence_status",
+          "value": "detected"
+        },
+        {
+          "name": "piquachu:occurrence_count",
+          "value": "1"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 0.6
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "src/pqc/falcon.py",
+            "line": 7
+          }
+        ]
+      }
+    }
+  ],
+  "vulnerabilities": []
+}

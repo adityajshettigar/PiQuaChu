@@ -1,26 +1,27 @@
-# Python & Backend
-backend/venv/
-backend/__pycache__/
-*.pyc
-backend/*.sqlite3
-backend/cipher_sentinel.db
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Environment Variables (CRITICAL!)
-.env
-backend/.env
-frontend/.env
+node_modules
+dist
+dist-ssr
+*.local
+# leftover root-owned build dirs from a previous root session
+node_modules/.tmp-rooted/
+dist-rooted/
 
-# Node & Frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.eslintcache
-
-# OS Files
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-
-venv/
-__pycache__/
-*.pyc
-.env
-ciphersentinel.db
-ciphersentinel.log
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

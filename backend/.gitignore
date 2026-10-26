@@ -2,5 +2,15 @@ venv/
 __pycache__/
 *.pyc
 .env
-ciphersentinel.db
-ciphersentinel.log
+piquachu.db
+piquachu.db-*
+# Pre-upgrade migration snapshots (a full copy of the local database).
+piquachu.db.*.bak
+*.pre-phase4.bak
+piquachu.log
+piquachu-audit.jsonl
+piquachu-audit.jsonl.*
+.it-tmp/
+
+# local vendored deps (celery/redis/javalang) for sandbox verification only
+vendor/

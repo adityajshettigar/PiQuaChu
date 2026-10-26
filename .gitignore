@@ -1,5 +1,22 @@
+# PiQuaChu — repository-level ignores
+
+# Patch backups / rollback manifests are LOCAL artifacts: they contain original
+# source and host paths and must never be committed or published.
+.piquachu-backups/
+
+# Local scan artifacts produced by the CLI / CI jobs at the repository root.
+piquachu.sarif
+piquachu-report.json
+piquachu-scan.log
+
+# Local secrets and generated runtime state.
+.env
+.env.*
+!.env.example
+backend/.it-tmp/
+
+# Committed baselines are intentional (`.piquachu-baseline.json`) — do not ignore them.
+
 **/node_modules/
-**/venv/
-**/.env
-**/__pycache__/
-**/*.sqlite3
+**/.vite/
+**/.vitest-cache/

@@ -1,0 +1,115 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:fe3ed43f-66d3-4e3a-803c-6730f321e712",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-18T17:18:02.710539+00:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "PiQuaChu",
+          "version": "2.2.0",
+          "supplier": {
+            "name": "PiQuaChu"
+          }
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "08_key_material.zip",
+      "bom-ref": "piquachu-project"
+    },
+    "properties": [
+      {
+        "name": "piquachu:pqc_score",
+        "value": "80"
+      },
+      {
+        "name": "piquachu:risk_score",
+        "value": "20"
+      },
+      {
+        "name": "piquachu:verdict",
+        "value": "non_compliant"
+      },
+      {
+        "name": "piquachu:findings_count",
+        "value": "1"
+      },
+      {
+        "name": "piquachu:assessment_status",
+        "value": "static_discovery"
+      },
+      {
+        "name": "piquachu:standards_registry_reviewed",
+        "value": "2026-10-18"
+      },
+      {
+        "name": "piquachu:policy_findings_not_in_vulnerabilities",
+        "value": "1"
+      },
+      {
+        "name": "piquachu:cbom_spec_version",
+        "value": "1.7"
+      },
+      {
+        "name": "piquachu:scan_id",
+        "value": "8"
+      },
+      {
+        "name": "piquachu:assets_within_scope",
+        "value": "crypto-rsa-key-material"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-rsa-key-material",
+      "name": "RSA key material",
+      "description": "Cryptographic asset observed by PiQuaChu static analysis. Discovery evidence, not a compliance certification.",
+      "cryptoProperties": {
+        "assetType": "related-crypto-material",
+        "relatedCryptoMaterialProperties": {
+          "type": "private-key"
+        }
+      },
+      "properties": [
+        {
+          "name": "piquachu:evidence_source",
+          "value": "static-source-pattern"
+        },
+        {
+          "name": "piquachu:limitations",
+          "value": "Pattern evidence only; not proof of runtime use, correct parameters, FIPS 140 validation, or organisation-wide compliance."
+        },
+        {
+          "name": "piquachu:rule_ids",
+          "value": "key-file-rsa"
+        },
+        {
+          "name": "piquachu:occurrence_count",
+          "value": "1"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 0.6
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "keys/deploy_id_rsa",
+            "line": 1
+          }
+        ]
+      }
+    }
+  ],
+  "vulnerabilities": []
+}

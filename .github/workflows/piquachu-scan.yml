@@ -1,0 +1,167 @@
+# PiQuaChu — PQC/SAST scan for pull requests (and optional pushes)
+#
+# Design notes (Phase 3):
+# * Local CLI mode only — NO repository secrets, no X-API-Key, no Groq key are
+#   ever passed to this workflow. Pull-request code must never see secrets, and
+#   the scanner needs none: `python backend/cipher_cli.py scan` runs entirely
+#   on the runner and never executes the *target* project's code (static AST +
+#   semgrep analysis only).
+# * Least privilege: the `scan` job has `contents: read` and nothing else.
+#   The only job that requests `security-events: write` is `code-scanning-upload`,
+#   and it runs only where GitHub actually permits it (same-repo PRs/pushes —
+#   never fork PRs, where the workflow token is read-only anyway).
+# * Every third-party action is pinned to an immutable commit SHA (resolved via
+#   `git ls-remote` at authoring time); the release tag is kept in a comment
+#   for auditability and deliberate upgrades.
+# * Gate policy: `--fail-on new-high` = only NEW findings at ERROR severity
+#   fail the build. Baselined findings do not. The baseline is read from the
+#   BASE branch at the merge base, so a PR cannot bless its own findings.
+# * SARIF is always uploaded as a workflow artifact; upload to GitHub code
+#   scanning is conditional (feature eligibility, fork behaviour) and is
+#   `continue-on-error` so repositories without the feature still gate.
+#
+# Bootstrap for a repository without a baseline yet:
+#   python backend/cipher_cli.py scan . --update-baseline .piquachu-baseline.json
+#   git add .piquachu-baseline.json && git commit -m "chore: PQC scan baseline"
+#
+# Manual acceptance evidence (see docs/engineering/phase-3-report.md):
+#   passing PR (no new ERROR) / failing PR (new ERROR) / SARIF artifact view.
+
+name: PiQuaChu PQC scan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# No default permissions anywhere; each job declares exactly what it needs.
+permissions: {}
+
+concurrency:
+  group: piquachu-scan-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Scan + baseline gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout only — no write scopes, no secrets
+    steps:
+      - name: Check out source (full history so the base-branch baseline is readable)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # needed for `git show origin/<base>:.piquachu-baseline.json`
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install PiQuaChu dependencies (README install path)
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Resolve baseline from the base branch (fork/shallow safe)
+        id: base
+        env:
+          BASE_REF: ${{ github.base_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pqu
+          # 1) Preferred: the baseline exactly as it exists on the BASE branch.
+          #    Works for fork PRs too — `origin` is the base repository here.
+          #    (fetch-depth: 0 above guarantees the ref is present.)
+          if git show "origin/${BASE_REF}:.piquachu-baseline.json" > /tmp/pqu/baseline.json 2>/dev/null; then
+            echo "source=base-branch:${BASE_REF}" >> "$GITHUB_OUTPUT"
+          # 2) Fallback: a baseline committed in this checkout (push pipelines).
+          elif [ -f .piquachu-baseline.json ]; then
+            cp .piquachu-baseline.json /tmp/pqu/baseline.json
+            echo "source=head-checkout" >> "$GITHUB_OUTPUT"
+          # 3) None: use the EXPLICIT --no-baseline policy — every actionable
+          #    finding counts as new. We never silently claim "no new issues".
+          else
+            rm -f /tmp/pqu/baseline.json
+            echo "source=explicit --no-baseline" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Scan (CLI local mode; no secrets provided to PR code)
+        id: scan
+        run: |
+          set -euo pipefail
+          if [ -f /tmp/pqu/baseline.json ]; then
+            BASE=(--baseline /tmp/pqu/baseline.json)
+          else
+            BASE=(--no-baseline)
+          fi
+          set +e
+          python backend/cipher_cli.py scan . \
+            --sarif /tmp/pqu/piquachu.sarif \
+            --fail-on new-high \
+            "${BASE[@]}" 2>&1 | tee /tmp/pqu/scan.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          grep -m1 'Baseline:' /tmp/pqu/scan.log || echo 'no baseline comparison'
+          # 2 = baseline/usage error → hard-fail the job (fail safe).
+          # 1 = gate triggered → recorded; enforced AFTER evidence upload.
+          if [ "$rc" -gt 2 ] || [ "$rc" -eq 2 ]; then
+            exit "$rc"
+          fi
+          exit 0
+
+      - name: Upload SARIF + scan log as artifact (always, no snippets)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: piquachu-sarif
+          path: |
+            /tmp/pqu/piquachu.sarif
+            /tmp/pqu/scan.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enforce gate (new actionable findings only, never score deltas)
+        if: always()
+        run: |
+          rc="${{ steps.scan.outputs.exit_code }}"
+          if [ "$rc" = "1" ]; then
+            echo "::error::PiQuaChu gate FAILED: new actionable finding(s) at/above ERROR severity (policy new-high). See the SARIF artifact."
+            exit 1
+          fi
+          echo "Gate passed (policy new-high; rc=${rc:-0})."
+
+  code-scanning-upload:
+    # Separate job so the scan job stays strictly read-only. This one holds
+    # `security-events: write` — the ONLY permission code scanning upload needs.
+    name: Upload SARIF to code scanning (when eligible)
+    needs: scan
+    if: >-
+      always() && (
+        github.event_name == 'push' ||
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.head.repo.full_name == github.repository)
+      )
+    permissions:
+      contents: read
+      security-events: write # required exclusively by upload-sarif
+    runs-on: ubuntu-latest
+    # Feature eligibility varies (Code scanning disabled, private-repo tier,
+    # restricted tokens): never let the optional upload fail the pipeline.
+    continue-on-error: true
+    steps:
+      - name: Download SARIF artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: piquachu-sarif
+          path: /tmp/pqu
+
+      - name: Publish SARIF (code scanning)
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          sarif_file: /tmp/pqu/piquachu.sarif
+          category: piquachu-sarif

@@ -120,3 +120,18 @@ wcwidth==0.6.0
 Werkzeug==3.1.6
 wrapt==1.17.3
 zipp==3.23.0
+
+# ---- Production scaling (optional): Celery + Redis broker ----
+# Required only when running `celery -A tasks worker` with PIQUACHU_BROKER_URL.
+# Without these, PiQuaChu runs jobs in-process (threads) — no behavior change.
+celery==5.6.3
+redis==8.1.0
+
+# ---- Java AST remediation patcher (optional) ----
+# Required only for auto-patching .java files (`cipher_cli.py patch`). Without
+# it, Java files are skipped — never mis-patched.
+javalang==0.13.0
+
+# ---- Test / reliability tooling ----
+pytest==8.3.5
+pytest-cov==6.1.1

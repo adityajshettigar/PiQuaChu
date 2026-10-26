@@ -1,0 +1,160 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:4045f626-3981-49ab-a9e9-61bb617cceaf",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-18T17:18:02.709938+00:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "PiQuaChu",
+          "version": "2.2.0",
+          "supplier": {
+            "name": "PiQuaChu"
+          }
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "01_legacy_only.zip",
+      "bom-ref": "piquachu-project"
+    },
+    "properties": [
+      {
+        "name": "piquachu:pqc_score",
+        "value": "70"
+      },
+      {
+        "name": "piquachu:risk_score",
+        "value": "26"
+      },
+      {
+        "name": "piquachu:verdict",
+        "value": "non_compliant"
+      },
+      {
+        "name": "piquachu:findings_count",
+        "value": "2"
+      },
+      {
+        "name": "piquachu:assessment_status",
+        "value": "static_discovery"
+      },
+      {
+        "name": "piquachu:standards_registry_reviewed",
+        "value": "2026-10-18"
+      },
+      {
+        "name": "piquachu:policy_findings_not_in_vulnerabilities",
+        "value": "2"
+      },
+      {
+        "name": "piquachu:cbom_spec_version",
+        "value": "1.7"
+      },
+      {
+        "name": "piquachu:scan_id",
+        "value": "1"
+      },
+      {
+        "name": "piquachu:assets_within_scope",
+        "value": "crypto-rsa, crypto-md5"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-rsa",
+      "name": "RSA",
+      "description": "Cryptographic asset observed by PiQuaChu static analysis. Discovery evidence, not a compliance certification.",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "pke"
+        }
+      },
+      "properties": [
+        {
+          "name": "piquachu:evidence_source",
+          "value": "static-source-pattern"
+        },
+        {
+          "name": "piquachu:limitations",
+          "value": "Pattern evidence only; not proof of runtime use, correct parameters, FIPS 140 validation, or organisation-wide compliance."
+        },
+        {
+          "name": "piquachu:rule_ids",
+          "value": "deprecated-rsa-python-cryptography"
+        },
+        {
+          "name": "piquachu:occurrence_count",
+          "value": "1"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 0.6
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "src/legacy/rsa.py",
+            "line": 14
+          }
+        ]
+      }
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-md5",
+      "name": "MD5",
+      "description": "Cryptographic asset observed by PiQuaChu static analysis. Discovery evidence, not a compliance certification.",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "algorithmFamily": "MD5"
+        }
+      },
+      "properties": [
+        {
+          "name": "piquachu:evidence_source",
+          "value": "static-source-pattern"
+        },
+        {
+          "name": "piquachu:limitations",
+          "value": "Pattern evidence only; not proof of runtime use, correct parameters, FIPS 140 validation, or organisation-wide compliance."
+        },
+        {
+          "name": "piquachu:rule_ids",
+          "value": "weak-crypto-python-md5"
+        },
+        {
+          "name": "piquachu:occurrence_count",
+          "value": "1"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 0.6
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "src/legacy/hash.py",
+            "line": 8
+          }
+        ]
+      }
+    }
+  ],
+  "vulnerabilities": []
+}

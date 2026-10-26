@@ -1,0 +1,134 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:af35283c-865b-4b10-aba9-5d7e2023b5da",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-18T17:18:02.710396+00:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "PiQuaChu",
+          "version": "2.2.0",
+          "supplier": {
+            "name": "PiQuaChu"
+          }
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "06_duplicate_evidence.zip",
+      "bom-ref": "piquachu-project"
+    },
+    "properties": [
+      {
+        "name": "piquachu:pqc_score",
+        "value": "100"
+      },
+      {
+        "name": "piquachu:risk_score",
+        "value": "0"
+      },
+      {
+        "name": "piquachu:verdict",
+        "value": "incomplete"
+      },
+      {
+        "name": "piquachu:findings_count",
+        "value": "2"
+      },
+      {
+        "name": "piquachu:assessment_status",
+        "value": "static_discovery"
+      },
+      {
+        "name": "piquachu:standards_registry_reviewed",
+        "value": "2026-10-18"
+      },
+      {
+        "name": "piquachu:policy_findings_not_in_vulnerabilities",
+        "value": "2"
+      },
+      {
+        "name": "piquachu:cbom_spec_version",
+        "value": "1.7"
+      },
+      {
+        "name": "piquachu:scan_id",
+        "value": "6"
+      },
+      {
+        "name": "piquachu:assets_within_scope",
+        "value": "crypto-ml-kem"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-ml-kem",
+      "name": "ML-KEM",
+      "description": "Cryptographic asset observed by PiQuaChu static analysis. Discovery evidence, not a compliance certification.",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "kem",
+          "algorithmFamily": "ML-KEM",
+          "parameterSetIdentifier": "ML-KEM-768",
+          "nistQuantumSecurityLevel": 3
+        }
+      },
+      "properties": [
+        {
+          "name": "piquachu:evidence_source",
+          "value": "static-source-pattern"
+        },
+        {
+          "name": "piquachu:limitations",
+          "value": "Pattern evidence only; not proof of runtime use, correct parameters, FIPS 140 validation, or organisation-wide compliance."
+        },
+        {
+          "name": "piquachu:rule_ids",
+          "value": "pqc-mlkem-python"
+        },
+        {
+          "name": "piquachu:nist_standard",
+          "value": "FIPS 203"
+        },
+        {
+          "name": "piquachu:standard_lifecycle",
+          "value": "final"
+        },
+        {
+          "name": "piquachu:evidence_status",
+          "value": "detected"
+        },
+        {
+          "name": "piquachu:occurrence_count",
+          "value": "2"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 0.6
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "src/a/kem.py",
+            "line": 5
+          },
+          {
+            "location": "src/b/kem.py",
+            "line": 9
+          }
+        ]
+      }
+    }
+  ],
+  "vulnerabilities": []
+}

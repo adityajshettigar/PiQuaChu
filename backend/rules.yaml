@@ -1,39 +1,1744 @@
+# backend/rules.yaml
+# PiQuaChu — NIST PQC Compliance Ruleset (FIPS 203 / 204 / 205 / 206)
+#
+# Every rule is tagged with metadata used by the compliance decision engine:
+#   - nist_standard:  FIPS 203 (ML-KEM) | FIPS 204 (ML-DSA) | FIPS 205 (SLH-DSA)
+#                     | FIPS 206 (FN-DSA / FALCON) | FIPS 202 (SHA-3 hashing)
+#                     | Advisory (symmetric/TLS)
+#   - category:       key-encapsulation | signatures | hashing | symmetric | tls
+#   - pqc_compliant:  true  -> usage of a recognized PQC algorithm (PASS evidence)
+#                     false -> legacy/broken crypto that requires migration (WARN/FAIL)
+#                     NOTE: FIPS 206 (FN-DSA) is still in development; positive
+#                     FIPS 206 rules are algorithm evidence, not a finalized pass.
+#   - target_algorithm: the NIST algorithm the code should migrate to
+#
+# Severity semantics:
+#   ERROR  -> broken today OR broken by Shor's algorithm (RSA/ECC/DSA key exchange
+#             and signatures, DES/3DES/RC4). Frontend shows as CRITICAL (FAIL).
+#   WARNING-> weakened or non-quantum-resistant hashing/TLS defaults. Frontend
+#             shows as WARNING (WARN).
+
 rules:
-  # --- PYTHON RULES ---
+  # ===========================================================================
+  # PYTHON
+  # ===========================================================================
+
+  # ---- Negative (legacy) rules ----------------------------------------------
   - id: weak-crypto-python-md5
     patterns:
-      - pattern: hashlib.md5(...)
-    message: "NIST PQC Migration: MD5 is vulnerable to collision attacks and is not quantum-resistant. Migrate to SHA-256 or SHA-3."
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: hashlib.new("md5")
+          - pattern: hashlib.new('md5')
+          - pattern: hmac.new(..., hashlib.md5)
+          - pattern: hashes.MD5(...)
+    message: "PQC compliance (FIPS 202): MD5 is broken for collision resistance and provides zero quantum security margin. Migrate to SHA-256 (FIPS 180-4) or SHA-3 (FIPS 202)."
     languages: [python]
     severity: WARNING
+    metadata:
+      nist_standard: FIPS 202
+      category: hashing
+      pqc_compliant: false
+      target_algorithm: SHA-256 / SHA3-256
 
-  # --- JAVA & SPRING SECURITY RULES ---
+  - id: weak-crypto-python-sha1
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.sha1(...)
+          - pattern: hashlib.new("sha1")
+          - pattern: hashlib.new('sha1')
+          - pattern: hashes.SHA1(...)
+    message: "PQC compliance (FIPS 202): SHA-1 is broken (SHAttered) and not quantum-resistant. Migrate to SHA-256 or SHA-3 (FIPS 202)."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      nist_standard: FIPS 202
+      category: hashing
+      pqc_compliant: false
+      target_algorithm: SHA-256 / SHA3-256
+
+  - id: deprecated-rsa-python-cryptography
+    patterns:
+      - pattern-either:
+          - pattern: rsa.generate_private_key(...)
+          - pattern: RSAPrivateKey(...)
+          - pattern: rsa.RSAPrivateKey(...)
+    message: "PQC compliance (FIPS 203): RSA key generation will be broken by Shor's algorithm. Migrate to ML-KEM (Kyber) for key encapsulation."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM
+
+  - id: deprecated-ecdh-python-cryptography
+    patterns:
+      - pattern-either:
+          - pattern: ec.generate_private_key(...)
+          - pattern: ec.ECDH(...)
+          - pattern: x25519.X25519PrivateKey(...)
+          - pattern: X25519PrivateKey.generate(...)
+          - pattern: x25519.X25519PrivateKey.generate(...)
+          - pattern: X25519PrivateKey.exchange(...)
+    message: "PQC compliance (FIPS 203): ECDH / X25519 key agreement is broken by Shor's algorithm. Migrate to ML-KEM (Kyber), optionally as a hybrid X25519+ML-KEM768 scheme."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM (hybrid X25519MLKEM768)
+
+  - id: deprecated-ecdsa-python-cryptography
+    patterns:
+      - pattern-either:
+          - pattern: ec.ECDSA(...)
+          - pattern: ed25519.Ed25519PrivateKey(...)
+          - pattern: ed448.Ed448PrivateKey(...)
+    message: "PQC compliance (FIPS 204): ECDSA/EdDSA signatures are broken by Shor's algorithm. Migrate to ML-DSA (Dilithium) or SLH-DSA (SPHINCS+) for digital signatures."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: false
+      target_algorithm: ML-DSA / SLH-DSA
+
+  - id: deprecated-des-python
+    patterns:
+      - pattern-either:
+          - pattern: Crypto.Cipher.DES.new(...)
+          - pattern: Crypto.Cipher.DES3.new(...)
+          - pattern: des.new(...)
+          - pattern: des3.new(...)
+    message: "PQC compliance (Advisory): DES/3DES is broken (64-bit block, brute-force feasible) and provides no quantum security margin. Migrate to AES-256-GCM."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  - id: deprecated-rc4-python
+    patterns:
+      - pattern-either:
+          - pattern: Crypto.Cipher.ARC4.new(...)
+          - pattern: ARC4.new(...)
+    message: "PQC compliance (Advisory): RC4 is cryptographically broken. Migrate to AES-256-GCM (quantum-resistant symmetric encryption)."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  - id: deprecated-tlsv1-python
+    patterns:
+      - pattern-either:
+          - pattern: ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+          - pattern: ssl.SSLContext(ssl.PROTOCOL_TLSv1_1)
+          - pattern: ssl.PROTOCOL_TLSv1
+    message: "PQC compliance (Advisory): TLS 1.0/1.1 is deprecated and relies on non-PQC key exchange. Upgrade to TLS 1.3 with ML-KEM or X25519MLKEM768 hybrid key exchange."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: tls
+      pqc_compliant: false
+      target_algorithm: TLS 1.3 + ML-KEM
+
+  # ---- Positive (PQC usage) rules -------------------------------------------
+  - id: pqc-mlkem-python
+    patterns:
+      - pattern: oqs.KeyEncapsulation($ALG)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^['\"]?(ML-KEM-512|ML-KEM-768|ML-KEM-1024|Kyber512|Kyber768|Kyber1024)['\"]?$
+    message: "PQC compliant (FIPS 203): ML-KEM (Kyber) key encapsulation detected — NIST-approved post-quantum key exchange."
+    languages: [python]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: true
+      target_algorithm: ML-KEM
+
+  - id: pqc-mldsa-python
+    patterns:
+      - pattern: oqs.Signature($ALG)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^['\"]?(ML-DSA-44|ML-DSA-65|ML-DSA-87|Dilithium2|Dilithium3|Dilithium5)['\"]?$
+    message: "PQC compliant (FIPS 204): ML-DSA (Dilithium) digital signature scheme detected — NIST-approved post-quantum signatures."
+    languages: [python]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: ML-DSA
+
+  - id: pqc-slhdsa-python
+    patterns:
+      - pattern: oqs.Signature($ALG)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^['\"]?(SLH-DSA|Sphincs|SPHINCS).*['\"]?$
+    message: "PQC compliant (FIPS 205): SLH-DSA (SPHINCS+) hash-based signature scheme detected — NIST-approved backup digital signatures."
+    languages: [python]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 205
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: SLH-DSA
+
+  - id: pqc-mlkem-python-cryptography
+    patterns:
+      - pattern-either:
+          - pattern: MLKEM768(...)
+          - pattern: MLKEM1024(...)
+          - pattern: X25519MLKEM768(...)
+    message: "PQC compliant (FIPS 203): ML-KEM usage detected via the Python cryptography library (incl. X25519MLKEM768 hybrid)."
+    languages: [python]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: true
+      target_algorithm: ML-KEM
+
+  # ===========================================================================
+  # JAVA & SPRING
+  # ===========================================================================
+
+  # ---- Negative (legacy) rules ----------------------------------------------
   - id: weak-crypto-java-md5
     patterns:
-      - pattern: MessageDigest.getInstance("MD5")
-    message: "NIST PQC Migration: MD5 detected in Java MessageDigest. Migrate to a quantum-resistant hashing algorithm."
+      - pattern-either:
+          - pattern: MessageDigest.getInstance("MD5")
+          - patterns:
+              - pattern: MessageDigest.getInstance($ALG)
+              - metavariable-regex:
+                  metavariable: $ALG
+                  regex: (?i)^['\"]?(md5|md2)['\"]?$
+    message: "PQC compliance (FIPS 202): MD5 detected in Java MessageDigest. Migrate to SHA-256 or SHA3-256 (FIPS 202)."
     languages: [java]
     severity: WARNING
-    
-  - id: vulnerable-rsa-java
+    metadata:
+      nist_standard: FIPS 202
+      category: hashing
+      pqc_compliant: false
+      target_algorithm: SHA-256 / SHA3-256
+
+  - id: weak-crypto-java-sha1
     patterns:
-      - pattern: KeyPairGenerator.getInstance("RSA")
-    message: "NIST PQC Migration: RSA will be broken by Shor's algorithm. Plan migration to ML-KEM (Kyber) for key encapsulation."
+      - pattern-either:
+          - pattern: MessageDigest.getInstance("SHA-1")
+          - pattern: MessageDigest.getInstance("SHA1")
+          - patterns:
+              - pattern: MessageDigest.getInstance($ALG)
+              - metavariable-regex:
+                  metavariable: $ALG
+                  regex: (?i)^['\"]?(sha-?1)['\"]?$
+    message: "PQC compliance (FIPS 202): SHA-1 detected in Java MessageDigest. Migrate to SHA-256 or SHA3-256 (FIPS 202)."
+    languages: [java]
+    severity: WARNING
+    metadata:
+      nist_standard: FIPS 202
+      category: hashing
+      pqc_compliant: false
+      target_algorithm: SHA-256 / SHA3-256
+
+  - id: deprecated-rsa-java
+    patterns:
+      - pattern-either:
+          - pattern: KeyPairGenerator.getInstance("RSA")
+          - patterns:
+              - pattern: KeyPairGenerator.getInstance($ALG)
+              - metavariable-regex:
+                  metavariable: $ALG
+                  regex: (?i)^['\"]?(rsa)['\"]?$
+    message: "PQC compliance (FIPS 203): RSA will be broken by Shor's algorithm. Migrate to ML-KEM (Kyber) for key encapsulation."
     languages: [java]
     severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM
+
+  - id: deprecated-ecdh-java
+    patterns:
+      - pattern-either:
+          - pattern: KeyAgreement.getInstance("ECDH")
+          - pattern: KeyAgreement.getInstance("DH")
+          - pattern: KeyPairGenerator.getInstance("EC")
+          - patterns:
+              - pattern: KeyPairGenerator.getInstance($ALG)
+              - metavariable-regex:
+                  metavariable: $ALG
+                  regex: (?i)^['\"]?(ec|ecdh|dh|diffiehellman)['\"]?$
+    message: "PQC compliance (FIPS 203): ECDH/DH key agreement will be broken by Shor's algorithm. Migrate to ML-KEM (Kyber)."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM
+
+  - id: deprecated-ecdsa-java
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: Signature.getInstance($ALG)
+              - metavariable-regex:
+                  metavariable: $ALG
+                  regex: (?i)^['\"]?.*(ecdsa|ed25519|ed448|sha(1|256|384|512)?withrsa|md5withrsa).*['\"]?$
+          - pattern: KeyPairGenerator.getInstance("DSA")
+    message: "PQC compliance (FIPS 204): classical digital signatures (ECDSA/RSA/DSA) will be broken by Shor's algorithm. Migrate to ML-DSA (Dilithium) or SLH-DSA (SPHINCS+)."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: false
+      target_algorithm: ML-DSA / SLH-DSA
+
+  - id: deprecated-des-java
+    patterns:
+      - pattern: Cipher.getInstance($ALG)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^['\"]?.*(des|3des|desede|rc4).*['\"]?$
+    message: "PQC compliance (Advisory): DES/3DES/RC4 is broken. Migrate to AES-256-GCM."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  - id: deprecated-tlsv1-java
+    patterns:
+      - pattern-either:
+          - pattern: SSLContext.getInstance("TLSv1")
+          - pattern: SSLContext.getInstance("TLSv1.1")
+          - pattern: SSLContext.getInstance("SSLv3")
+    message: "PQC compliance (Advisory): TLS 1.0/1.1/SSLv3 is deprecated. Upgrade to TLS 1.3."
+    languages: [java]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: tls
+      pqc_compliant: false
+      target_algorithm: TLS 1.3
 
   - id: spring-security-weak-password-encoder
     patterns:
       - pattern: new MessageDigestPasswordEncoder("MD5")
-    message: "NIST PQC Migration: Spring Security using outdated MD5 encoder. Upgrade to Argon2 or BCrypt as an interim step before PQC standard adoption."
+    message: "PQC compliance (Advisory): Spring Security using outdated MD5 encoder. Upgrade to Argon2id or BCrypt as an interim step before PQC standard adoption."
     languages: [java]
     severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: hashing
+      pqc_compliant: false
+      target_algorithm: Argon2id / BCrypt
 
-  # --- JAVASCRIPT / TYPESCRIPT RULES ---
+  # ---- Positive (PQC usage) rules -------------------------------------------
+  - id: pqc-mlkem-java
+    patterns:
+      - pattern-either:
+          - pattern: new KyberKeyPairGenerator()
+          - pattern: new KyberKeyPairGenerator(...)
+          - pattern: KyberKeyGenerationParameters(...)
+          - pattern: new KyberKeyGenerationParameters(...)
+          - pattern: new MLKEMKeyPairGenerator()
+          - pattern: MLKEMKeyGenerationParameters(...)
+    message: "PQC compliant (FIPS 203): ML-KEM (Kyber) key encapsulation detected via Bouncy Castle PQC."
+    languages: [java]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: true
+      target_algorithm: ML-KEM
+
+  - id: pqc-mldsa-java
+    patterns:
+      - pattern-either:
+          - pattern: new DilithiumKeyPairGenerator()
+          - pattern: new DilithiumKeyPairGenerator(...)
+          - pattern: DilithiumKeyGenerationParameters(...)
+          - pattern: new MLDSAKeyPairGenerator()
+          - pattern: MLDSAKeyGenerationParameters(...)
+    message: "PQC compliant (FIPS 204): ML-DSA (Dilithium) digital signatures detected via Bouncy Castle PQC."
+    languages: [java]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: ML-DSA
+
+  - id: pqc-slhdsa-java
+    patterns:
+      - pattern-either:
+          - pattern: new SPHINCSPlusKeyPairGenerator()
+          - pattern: new SPHINCSPlusKeyPairGenerator(...)
+          - pattern: SPHINCSPlusKeyGenerationParameters(...)
+          - pattern: new SLHDSAKeyPairGenerator()
+          - pattern: SLHDSAKeyGenerationParameters(...)
+    message: "PQC compliant (FIPS 205): SLH-DSA (SPHINCS+) hash-based signatures detected via Bouncy Castle PQC."
+    languages: [java]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 205
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: SLH-DSA
+
+  # ===========================================================================
+  # JAVASCRIPT / TYPESCRIPT (Node.js crypto + WebCrypto)
+  # ===========================================================================
+
+  # ---- Negative (legacy) rules ----------------------------------------------
   - id: nodejs-weak-crypto
     patterns:
-      - pattern: crypto.createHash('md5')
-      - pattern: crypto.createHash('sha1')
-    message: "NIST PQC Migration: Node.js using weak hashing. Upgrade to 'sha256' or 'sha3-256'."
+      - pattern-either:
+          - pattern: crypto.createHash('md5')
+          - pattern: crypto.createHash("md5")
+          - pattern: crypto.createHash('sha1')
+          - pattern: crypto.createHash("sha1")
+    message: "PQC compliance (FIPS 202): Node.js using weak hashing (MD5/SHA-1). Upgrade to 'sha256' or 'sha3-256'."
     languages: [javascript, typescript]
     severity: WARNING
+    metadata:
+      nist_standard: FIPS 202
+      category: hashing
+      pqc_compliant: false
+      target_algorithm: sha256 / sha3-256
+
+  - id: nodejs-rsa-keypair
+    patterns:
+      - pattern: $OBJ.generateKeyPairSync($ALG, ...)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^['\"]?(rsa)['\"]?$
+    message: "PQC compliance (FIPS 203): RSA key pair generation will be broken by Shor's algorithm. Migrate to ML-KEM (Kyber) for key encapsulation."
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM
+
+  - id: nodejs-ecdsa-keypair
+    patterns:
+      - pattern: $OBJ.generateKeyPairSync($ALG, ...)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^['\"]?(ec|ed25519|ed448|dsa)['\"]?$
+    message: "PQC compliance (FIPS 204): ECDSA/EdDSA/DSA signatures will be broken by Shor's algorithm. Migrate to ML-DSA (Dilithium) or SLH-DSA (SPHINCS+)."
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: false
+      target_algorithm: ML-DSA / SLH-DSA
+
+  - id: nodejs-des-cipher
+    patterns:
+      - pattern: crypto.createCipheriv($ALG, ...)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i).*(des|3des|ede3|rc4).*
+    message: "PQC compliance (Advisory): DES/3DES/RC4 is broken. Migrate to aes-256-gcm."
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: aes-256-gcm
+
+  - id: webcrypto-rsa-oaep
+    patterns:
+      - pattern: "crypto.subtle.generateKey({name: 'RSA-OAEP', ...}, ...)"
+      - pattern: "crypto.subtle.generateKey({name: \"RSA-OAEP\", ...}, ...)"
+    message: "PQC compliance (FIPS 203): WebCrypto RSA-OAEP key exchange will be broken by Shor's algorithm. Migrate to ML-KEM (Kyber)."
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM
+
+  - id: webcrypto-ecdsa-sign
+    patterns:
+      - pattern-either:
+          - pattern: "crypto.subtle.generateKey({name: 'ECDSA', ...}, ...)"
+          - pattern: "crypto.subtle.generateKey({name: \"ECDSA\", ...}, ...)"
+          - pattern: "crypto.subtle.generateKey({name: 'RSASSA-PKCS1-v1_5', ...}, ...)"
+          - pattern: "crypto.subtle.generateKey({name: \"RSASSA-PKCS1-v1_5\", ...}, ...)"
+    message: "PQC compliance (FIPS 204): WebCrypto ECDSA/RSA signatures will be broken by Shor's algorithm. Migrate to ML-DSA (Dilithium) or SLH-DSA (SPHINCS+)."
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: false
+      target_algorithm: ML-DSA / SLH-DSA
+
+  # ---- Positive (PQC usage) rules -------------------------------------------
+  - id: pqc-mlkem-js
+    patterns:
+      - pattern-either:
+          - pattern: mlkem768.keygen(...)
+          - pattern: mlkem768.encapsulate(...)
+          - pattern: mlkem768.decapsulate(...)
+          - pattern: mlkem768(...)
+          - pattern: MLKEM768(...)
+          - pattern: kem.encap(...)
+          - pattern: new MLKEM768KeyPair()
+          - pattern: from('@noble/post-quantum/ml-kem')
+    message: "PQC compliant (FIPS 203): ML-KEM (Kyber) detected in JavaScript/TypeScript."
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: true
+      target_algorithm: ML-KEM
+
+  - id: pqc-mldsa-js
+    patterns:
+      - pattern-either:
+          - pattern: mldsa65.keygen(...)
+          - pattern: mldsa65.sign(...)
+          - pattern: mldsa65.verify(...)
+          - pattern: mldsa44.keygen(...)
+          - pattern: mldsa87.keygen(...)
+          - pattern: mldsa65(...)
+          - pattern: MLDSA65(...)
+          - pattern: dilithium(...)
+          - pattern: new MLDSA65KeyPair()
+          - pattern: from('@noble/post-quantum/ml-dsa')
+    message: "PQC compliant (FIPS 204): ML-DSA (Dilithium) detected in JavaScript/TypeScript."
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: ML-DSA
+
+  - id: pqc-slhdsa-js
+    patterns:
+      - pattern-either:
+          - pattern: slhdsa_sha2_128s.keygen(...)
+          - pattern: slhdsa_sha2_128s.sign(...)
+          - pattern: slhdsa_sha2_128s.verify(...)
+          - pattern: sphincs(...)
+          - pattern: slhdsa(...)
+          - pattern: new SLHDSAKeyPair()
+          - pattern: from('@noble/post-quantum/slh-dsa')
+    message: "PQC compliant (FIPS 205): SLH-DSA (SPHINCS+) detected in JavaScript/TypeScript."
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 205
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: SLH-DSA
+
+  # ===========================================================================
+  # GO
+  # ===========================================================================
+
+  # ---- Negative (legacy) rules ----------------------------------------------
+  - id: deprecated-go-rsa
+    patterns:
+      - pattern-either:
+          - pattern: rsa.GenerateKey(...)
+          - pattern: rsa.SignPKCS1v15(...)
+          - pattern: rsa.EncryptPKCS1v15(...)
+    message: "PQC compliance (FIPS 203): RSA will be broken by Shor's algorithm. Migrate to ML-KEM (Kyber) for key encapsulation."
+    languages: [go]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM
+
+  - id: deprecated-go-ecdsa
+    patterns:
+      - pattern-either:
+          - pattern: ecdsa.GenerateKey(...)
+          - pattern: ecdsa.Sign(...)
+          - pattern: ed25519.Sign(...)
+          - pattern: ed25519.GenerateKey(...)
+    message: "PQC compliance (FIPS 204): ECDSA/EdDSA signatures will be broken by Shor's algorithm. Migrate to ML-DSA (Dilithium) or SLH-DSA (SPHINCS+)."
+    languages: [go]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: false
+      target_algorithm: ML-DSA / SLH-DSA
+
+  - id: deprecated-go-hash
+    patterns:
+      - pattern-either:
+          - pattern: md5.Sum(...)
+          - pattern: md5.New()
+          - pattern: sha1.Sum(...)
+          - pattern: sha1.New()
+    message: "PQC compliance (FIPS 202): MD5/SHA-1 detected in Go. Migrate to sha256 or sha3."
+    languages: [go]
+    severity: WARNING
+    metadata:
+      nist_standard: FIPS 202
+      category: hashing
+      pqc_compliant: false
+      target_algorithm: sha256 / sha3
+
+  - id: deprecated-go-des
+    patterns:
+      - pattern-either:
+          - pattern: des.NewCipher(...)
+          - pattern: rc4.NewCipher(...)
+    message: "PQC compliance (Advisory): DES/RC4 is broken. Migrate to AES-256-GCM."
+    languages: [go]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  - id: deprecated-go-tlsv1
+    patterns:
+      - pattern-either:
+          - pattern: tls.VersionTLS10
+          - pattern: tls.VersionTLS11
+    message: "PQC compliance (Advisory): TLS 1.0/1.1 is deprecated. Upgrade to TLS 1.3 with ML-KEM hybrid key exchange."
+    languages: [go]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: tls
+      pqc_compliant: false
+      target_algorithm: TLS 1.3 + ML-KEM
+
+  # ---- Positive (PQC usage) rules -------------------------------------------
+  - id: pqc-mlkem-go
+    patterns:
+      - pattern-either:
+          - pattern: mlkem.NewMLKEM768(...)
+          - pattern: mlkem.NewMLKEM512(...)
+          - pattern: mlkem.NewMLKEM1024(...)
+          - pattern: circl.kem.mlkem(...)
+    message: "PQC compliant (FIPS 203): ML-KEM (Kyber) detected in Go (e.g. Cloudflare circl)."
+    languages: [go]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: true
+      target_algorithm: ML-KEM
+
+  - id: pqc-mldsa-go
+    patterns:
+      - pattern-either:
+          - pattern: mldsa.GenerateKey(...)
+          - pattern: mldsa44.GenerateKey(...)
+          - pattern: mldsa65.GenerateKey(...)
+          - pattern: mldsa87.GenerateKey(...)
+          - pattern: mldsa44(...)
+          - pattern: mldsa65(...)
+          - pattern: mldsa87(...)
+          - pattern: circl.sig.mldsa(...)
+    message: "PQC compliant (FIPS 204): ML-DSA (Dilithium) detected in Go (e.g. Cloudflare circl)."
+    languages: [go]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: ML-DSA
+
+  - id: pqc-slhdsa-go
+    patterns:
+      - pattern-either:
+          - pattern: sphincs.GenerateKey(...)
+          - pattern: circl.sig.sphincs(...)
+    message: "PQC compliant (FIPS 205): SLH-DSA (SPHINCS+) detected in Go."
+    languages: [go]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 205
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: SLH-DSA
+
+  # ===========================================================================
+  # C / C++ (OpenSSL / liboqs)
+  # ===========================================================================
+
+  # ---- Negative (legacy) rules ----------------------------------------------
+  - id: deprecated-c-openssl-md5
+    patterns:
+      - pattern-either:
+          - pattern: MD5_Init(...)
+          - pattern: EVP_md5()
+          - pattern: SHA1_Init(...)
+          - pattern: EVP_sha1()
+    message: "PQC compliance (FIPS 202): MD5/SHA-1 detected via OpenSSL. Migrate to EVP_sha256() or EVP_sha3_256()."
+    languages: [c, cpp]
+    severity: WARNING
+    metadata:
+      nist_standard: FIPS 202
+      category: hashing
+      pqc_compliant: false
+      target_algorithm: SHA-256 / SHA3-256
+
+  - id: deprecated-c-openssl-rsa
+    patterns:
+      - pattern-either:
+          - pattern: RSA_generate_key(...)
+          - pattern: RSA_new()
+          - pattern: EVP_PKEY_RSA
+          - pattern: EVP_PKEY_assign_RSA(...)
+    message: "PQC compliance (FIPS 203): RSA will be broken by Shor's algorithm. Migrate to ML-KEM via liboqs or OpenSSL 3.5+ ML-KEM support."
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM
+
+  - id: deprecated-c-openssl-ecdsa
+    patterns:
+      - pattern-either:
+          - pattern: ECDSA_do_sign(...)
+          - pattern: EC_KEY_new()
+          - pattern: EC_KEY_new_by_curve_name(...)
+          - pattern: EC_KEY_generate_key(...)
+          - pattern: EC_KEY_set_group(...)
+          - pattern: EVP_PKEY_EC
+    message: "PQC compliance (FIPS 204): ECDSA will be broken by Shor's algorithm. Migrate to ML-DSA or SLH-DSA via liboqs."
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: false
+      target_algorithm: ML-DSA / SLH-DSA
+
+  - id: deprecated-c-openssl-symmetric
+    patterns:
+      - pattern-either:
+          - pattern: EVP_des_ecb()
+          - pattern: EVP_des_ede3_cbc()
+          - pattern: EVP_rc4()
+    message: "PQC compliance (Advisory): DES/RC4 is broken. Migrate to EVP_aes_256_gcm()."
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  - id: deprecated-c-tlsv1
+    patterns:
+      - pattern-either:
+          - pattern: TLSv1_method()
+          - pattern: TLSv1_1_method()
+          - pattern: SSLv3_method()
+    message: "PQC compliance (Advisory): TLS 1.0/1.1/SSLv3 is deprecated. Upgrade to TLS 1.3."
+    languages: [c, cpp]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: tls
+      pqc_compliant: false
+      target_algorithm: TLS 1.3
+
+  # ---- Positive (PQC usage) rules -------------------------------------------
+  - id: pqc-mlkem-c
+    patterns:
+      - pattern: OQS_KEM_new($ALG)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i).*(ml_kem|kyber).*
+    message: "PQC compliant (FIPS 203): ML-KEM key encapsulation detected via liboqs (OQS_KEM_new)."
+    languages: [c, cpp]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: true
+      target_algorithm: ML-KEM
+
+  - id: pqc-mldsa-c
+    patterns:
+      - pattern: OQS_SIG_new($ALG)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i).*(ml_dsa|dilithium).*
+    message: "PQC compliant (FIPS 204): ML-DSA digital signatures detected via liboqs (OQS_SIG_new)."
+    languages: [c, cpp]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: ML-DSA
+
+  - id: pqc-slhdsa-c
+    patterns:
+      - pattern: OQS_SIG_new($ALG)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^.*(slh|sphincs).*$
+    message: "PQC compliant (FIPS 205): SLH-DSA (SPHINCS+) detected via liboqs."
+    languages: [c, cpp]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 205
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: SLH-DSA
+
+  # ===========================================================================
+  # RUST (pqcrypto / RustCrypto)
+  # ===========================================================================
+
+  - id: pqc-mldsa-rust
+    patterns:
+      - pattern-inside: |
+          use pqcrypto_dilithium::*;
+          ...
+      - pattern-either:
+          - pattern: keypair(...)
+          - pattern: detached_sign(...)
+          - pattern: verify_detached_signature(...)
+          - pattern: sign(...)
+          - pattern: pqcrypto_dilithium::keypair(...)
+          - pattern: pqcrypto_dilithium::detached_sign(...)
+          - pattern: pqcrypto_dilithium::verify_detached_signature(...)
+    message: "PQC compliant (FIPS 204): ML-DSA (Dilithium) detected via the Rust pqcrypto crate."
+    languages: [rust]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: ML-DSA
+
+  - id: pqc-mlkem-rust
+    patterns:
+      - pattern-inside: |
+          use pqcrypto_kyber::*;
+          ...
+      - pattern-either:
+          - pattern: keypair(...)
+          - pattern: encapsulate(...)
+          - pattern: decapsulate(...)
+          - pattern: pqcrypto_kyber::keypair(...)
+          - pattern: pqcrypto_kyber::encapsulate(...)
+          - pattern: pqcrypto_kyber::decapsulate(...)
+    message: "PQC compliant (FIPS 203): ML-KEM (Kyber) detected via the Rust pqcrypto crate."
+    languages: [rust]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: true
+      target_algorithm: ML-KEM
+
+  - id: pqc-slhdsa-rust
+    patterns:
+      - pattern-inside: |
+          use pqcrypto_sphincsplus::*;
+          ...
+      - pattern-either:
+          - pattern: keypair(...)
+          - pattern: detached_sign(...)
+          - pattern: verify_detached_signature(...)
+          - pattern: pqcrypto_sphincsplus::keypair(...)
+          - pattern: pqcrypto_sphincsplus::detached_sign(...)
+          - pattern: pqcrypto_sphincsplus::verify_detached_signature(...)
+    message: "PQC compliant (FIPS 205): SLH-DSA (SPHINCS+) detected via the Rust pqcrypto crate."
+    languages: [rust]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 205
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: SLH-DSA
+
+  # ===========================================================================
+  # PHP (deprecated mcrypt)
+  # ===========================================================================
+
+  - id: deprecated-php-mcrypt-des
+    patterns:
+      - pattern-either:
+          - pattern: mcrypt_encrypt(MCRYPT_DES, ...)
+          - pattern: mcrypt_encrypt(MCRYPT_3DES, ...)
+          - pattern: mcrypt_encrypt(MCRYPT_RC4, ...)
+          - pattern: mcrypt_encrypt('des', ...)
+          - pattern: mcrypt_encrypt('tripledes', ...)
+          - pattern: mcrypt_encrypt('rc4', ...)
+    message: "PQC compliance (Advisory): DES/3DES/RC4 is broken. Migrate to AES-256-GCM (e.g. openssl_encrypt with aes-256-gcm)."
+    languages: [php]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  # ===========================================================================
+  # AES-128 (Grover's halves effective strength to 64-bit — migrate to AES-256)
+  # ===========================================================================
+
+  - id: deprecated-aes128-js
+    patterns:
+      - pattern: crypto.createCipheriv($ALG, ...)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^['\"]?aes-128.*['\"]?$
+    message: "PQC compliance (Advisory): AES-128 is weakened by Grover's algorithm (64-bit effective quantum security). Migrate to aes-256-gcm."
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: aes-256-gcm
+
+  - id: deprecated-aes128-java
+    patterns:
+      - pattern-inside: |
+          KeyGenerator $G = KeyGenerator.getInstance("AES");
+          ...
+      - pattern: $G.init(128)
+    message: "PQC compliance (Advisory): AES-128 is weakened by Grover's algorithm (64-bit effective quantum security). Migrate to AES-256-GCM."
+    languages: [java]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  - id: deprecated-aes128-python
+    # AST-engine rule (key-length aware). No-op pattern keeps semgrep schema valid.
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (Advisory): AES-128 is weakened by Grover's algorithm (64-bit effective quantum security). Migrate to AES-256-GCM."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  # ===========================================================================
+  # Hardcoded secrets (AST-engine rule)
+  # ===========================================================================
+
+  - id: hardcoded-secret-python
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (Secrets hygiene): hardcoded cryptographic secret/credential detected. Move to a secrets manager / environment variables."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: secrets
+      pqc_compliant: false
+      target_algorithm: Secrets Manager / env vars
+
+  # ===========================================================================
+  # Semantic detection (AST-engine rule): textbook/toy RSA without library imports
+  # ===========================================================================
+
+  - id: semantic-naive-rsa-python
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (FIPS 203): textbook/toy RSA implementation detected (modular exponentiation key scheme). Migrate to a vetted ML-KEM implementation."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM
+
+  # ===========================================================================
+  # PQC library expansion — additional real-world positive evidence
+  # ===========================================================================
+
+  - id: pqc-js-crystals-kyber
+    patterns:
+      - pattern-either:
+          - pattern: kyber.keyPair(...)
+          - pattern: kyber.encrypt(...)
+          - pattern: kyber.decrypt(...)
+          - pattern: kyber.capsule(...)
+    message: "PQC compliant (FIPS 203): ML-KEM (Kyber) detected via the crystals-kyber package."
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: true
+      target_algorithm: ML-KEM
+
+  - id: pqc-mlkem-go-circl-legacy
+    patterns:
+      - pattern-either:
+          - pattern: kyber768.GenerateKeyPair(...)
+          - pattern: kyber512.GenerateKeyPair(...)
+          - pattern: kyber1024.GenerateKeyPair(...)
+          - pattern: kyber.Encapsulate(...)
+          - pattern: kyber.Decapsulate(...)
+    message: "PQC compliant (FIPS 203): ML-KEM (Kyber) detected via Cloudflare circl legacy kyber packages."
+    languages: [go]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: true
+      target_algorithm: ML-KEM
+
+  - id: pqc-mldsa-go-circl-legacy
+    patterns:
+      - pattern-either:
+          - pattern: dilithium2.GenerateKey(...)
+          - pattern: dilithium3.GenerateKey(...)
+          - pattern: dilithium5.GenerateKey(...)
+          - pattern: dilithium2.Sign(...)
+          - pattern: dilithium3.Sign(...)
+          - pattern: dilithium5.Sign(...)
+          - pattern: dilithium2.Verify(...)
+          - pattern: dilithium3.Verify(...)
+          - pattern: dilithium5.Verify(...)
+    message: "PQC compliant (FIPS 204): ML-DSA (Dilithium) detected via Cloudflare circl legacy packages."
+    languages: [go]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: ML-DSA
+
+  - id: pqc-slhdsa-go-circl-legacy
+    patterns:
+      - pattern-either:
+          - pattern: sphincs.GenerateKey(...)
+          - pattern: sphincs.Sign(...)
+          - pattern: sphincs.Verify(...)
+    message: "PQC compliant (FIPS 205): SLH-DSA (SPHINCS+) detected via Cloudflare circl."
+    languages: [go]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 205
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: SLH-DSA
+
+  # BouncyCastle JCA provider algorithm names (KYBER / DILITHIUM / SPHINCSPlus)
+  - id: pqc-bc-kyber-java
+    patterns:
+      - pattern-either:
+          - pattern: KeyPairGenerator.getInstance("KYBER", ...)
+          - pattern: KeyAgreement.getInstance("KYBER", ...)
+          - pattern: KeyPairGenerator.getInstance("ML-KEM", ...)
+    message: "PQC compliant (FIPS 203): ML-KEM (Kyber) detected via the BouncyCastle PQC JCA provider."
+    languages: [java]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: true
+      target_algorithm: ML-KEM
+
+  - id: pqc-bc-dilithium-java
+    patterns:
+      - pattern-either:
+          - pattern: KeyPairGenerator.getInstance("DILITHIUM", ...)
+          - pattern: Signature.getInstance("DILITHIUM", ...)
+          - pattern: KeyPairGenerator.getInstance("ML-DSA", ...)
+          - pattern: Signature.getInstance("ML-DSA", ...)
+    message: "PQC compliant (FIPS 204): ML-DSA (Dilithium) detected via the BouncyCastle PQC JCA provider."
+    languages: [java]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: ML-DSA
+
+  - id: pqc-bc-sphincs-java
+    patterns:
+      - pattern-either:
+          - pattern: Signature.getInstance("SPHINCSPlus", ...)
+          - pattern: Signature.getInstance("SPHINCS+", ...)
+          - pattern: Signature.getInstance("SLH-DSA", ...)
+    message: "PQC compliant (FIPS 205): SLH-DSA (SPHINCS+) detected via the BouncyCastle PQC JCA provider."
+    languages: [java]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 205
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: SLH-DSA
+
+  - id: pqc-mlkem-python-pqcrypto
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliant (FIPS 203): ML-KEM (Kyber) detected via the pqcrypto package."
+    languages: [python]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: true
+      target_algorithm: ML-KEM
+
+  - id: pqc-mldsa-python-pqcrypto
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliant (FIPS 204): ML-DSA (Dilithium) detected via the pqcrypto package."
+    languages: [python]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: ML-DSA
+
+  - id: pqc-slhdsa-python-pqcrypto
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliant (FIPS 205): SLH-DSA (SPHINCS+) detected via the pqcrypto package."
+    languages: [python]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 205
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: SLH-DSA
+
+  # ===========================================================================
+  # Node-forge RSA (legacy JS cryptography library)
+  # ===========================================================================
+
+  - id: deprecated-node-forge-rsa
+    patterns:
+      - pattern-either:
+          - pattern: $KEY.encrypt($DATA, 'RSA-OAEP')
+          - pattern: $KEY.encrypt($DATA, "RSA-OAEP")
+          - pattern: forge.pki.publicKeyFromPem(...)
+          - pattern: forge.pki.rsa.generateKeyPair(...)
+          - pattern: pki.rsa.generateKeyPair(...)
+    message: "PQC compliance (FIPS 203): RSA-OAEP via node-forge will be broken by Shor's algorithm. Migrate to ML-KEM (Kyber)."
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM
+
+  # ===========================================================================
+  # Semantic detection: hand-rolled RC4 stream cipher (name-based heuristic)
+  # ===========================================================================
+
+  - id: semantic-c-rc4
+    patterns:
+      - pattern-either:
+          - pattern: rc4_ksa(...)
+          - pattern: rc4_prga(...)
+          - pattern: rc4_init(...)
+    message: "PQC compliance (Advisory): hand-rolled RC4 stream cipher implementation detected. RC4 is broken and banned in TLS since 2015. Migrate to AES-256-GCM via OpenSSL EVP."
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  # ===========================================================================
+  # Hybrid / transitional TLS evidence (config + Go)
+  # ===========================================================================
+
+  - id: pqc-hybrid-tls-config
+    # Config-evidence rule (aux scanner): X25519Kyber768Draft00 in TLS configs.
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC hybrid (FIPS 203): X25519Kyber768Draft00 hybrid TLS group detected — transitional PQC key exchange in transport config."
+    languages: [generic]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: hybrid
+      pqc_compliant: true
+      target_algorithm: ML-KEM (X25519Kyber768Draft00)
+
+  - id: pqc-hybrid-tls-go
+    patterns:
+      - pattern-either:
+          - pattern: tls.X25519Kyber768Draft00
+          - pattern: tls.X25519MLKEM768
+    message: "PQC hybrid (FIPS 203): hybrid X25519+ML-KEM TLS group detected in Go — transitional PQC key exchange."
+    languages: [go]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: hybrid
+      pqc_compliant: true
+      target_algorithm: ML-KEM (X25519MLKEM768)
+
+  - id: pqc-hybrid-ssh-kex-config
+    # Config-evidence rule (aux scanner): OpenSSH hybrid key-exchange algorithms
+    # (sntrup761x25519, mlkem768x25519) in sshd_config / ssh_config — mirrors the
+    # detection surface of network flow analyzers (e.g. CipherIQ/pqc-flow).
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC hybrid (FIPS 203): OpenSSH hybrid key-exchange algorithm detected (sntrup761x25519 / mlkem768x25519) — transitional PQC key exchange in SSH config."
+    languages: [generic]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 203
+      category: hybrid
+      pqc_compliant: true
+      target_algorithm: ML-KEM (mlkem768x25519-sha256)
+
+  - id: deprecated-ssh-kex-config
+    # Config-evidence rule (aux scanner): classical-only SSH key exchange.
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (Advisory): SSH config advertises classical-only key exchange (curve25519-sha256). Enable OpenSSH 9.0+ hybrid KEX (sntrup761x25519 / mlkem768x25519)."
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: tls
+      pqc_compliant: false
+      target_algorithm: OpenSSH hybrid KEX (mlkem768x25519-sha256)
+
+  - id: deprecated-tls-ciphers-config
+    # Config-evidence rule (aux scanner): classical RSA/ECDHE cipher suites in TLS configs.
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (Advisory): TLS config advertises classical ECDHE-RSA/DHE-RSA cipher suites. Enable TLS 1.3 with X25519MLKEM768 hybrid groups."
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: tls
+      pqc_compliant: false
+      target_algorithm: TLS 1.3 + ML-KEM
+
+  # ===========================================================================
+  # Dependency manifest scanning (deps.py — metadata-only rules)
+  # ===========================================================================
+
+  - id: dependency-legacy-crypto-lib
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "Dependency manifest references a classical-crypto-capable library. Review whether legacy algorithms (RSA/ECC/DES/MD5/SHA-1/AES-128) are used before migration freeze."
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: dependencies
+      pqc_compliant: false
+      target_algorithm: review / upgrade
+
+  - id: dependency-pqc-lib
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "Dependency manifest references a post-quantum cryptography library — positive PQC adoption signal."
+    languages: [generic]
+    severity: INFO
+    metadata:
+      nist_standard: Advisory
+      category: dependencies
+      pqc_compliant: true
+      target_algorithm: ""
+
+  # ===========================================================================
+  # Key-material file detection (keyfiles.py — metadata-only rules)
+  # ===========================================================================
+
+  - id: key-file-rsa
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (FIPS 203): RSA private key material found in the repository. Replace with ML-KEM key material / HSM-backed PQC keys."
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM
+
+  - id: key-file-ec
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (FIPS 204): Elliptic-curve private key material found in the repository. Replace with ML-DSA / SLH-DSA key material."
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 204
+      category: signatures
+      pqc_compliant: false
+      target_algorithm: ML-DSA / SLH-DSA
+
+  # ===========================================================================
+  # Classical misuse patterns — ECB, static IV, static salt, weak RNG, taint
+  # ===========================================================================
+
+  # ---- Python (AST-engine rules: semantic mode/key-length/alias awareness) --
+  - id: deprecated-ecb-python
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (Advisory): ECB mode leaks plaintext structure (identical blocks encrypt identically). Use AES-256-GCM authenticated encryption."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  - id: deprecated-cbc-static-iv-python
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (Advisory): CBC mode with a static/predictable IV enables IV-reuse and known-plaintext attacks. Use AES-256-GCM with a fresh random nonce per message."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  - id: deprecated-static-salt-python
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (Advisory): KDF called with a static salt weakens password derivation. Use a fresh random salt per credential (secrets.token_bytes(16))."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: kdf
+      pqc_compliant: false
+      target_algorithm: random salt per credential
+
+  - id: weak-randomness-python
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (Advisory): insecure randomness (random module) used for cryptographic key/IV material. Use secrets.token_bytes / os.urandom."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: randomness
+      pqc_compliant: false
+      target_algorithm: secrets.token_bytes / os.urandom
+
+  - id: taint-secret-weak-algorithm-python
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (Secrets hygiene): a secret/private-key value flows into a weak algorithm call. Fix the algorithm AND rotate the affected secret."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: secrets
+      pqc_compliant: false
+      target_algorithm: Secrets Manager / env vars
+
+  # ---- Java ----------------------------------------------------------------
+  - id: deprecated-ecb-java
+    patterns:
+      - pattern: Cipher.getInstance($ALG)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^['"]?.*/ecb/.*['"]?$
+    message: "PQC compliance (Advisory): ECB cipher mode leaks plaintext structure. Use AES/GCM/NoPadding with a fresh random IV."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  - id: deprecated-cipher-default-mode-java
+    patterns:
+      - pattern: Cipher.getInstance($ALG)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^['"]?(aes|des|desede|blowfish)['"]?$
+    message: "PQC compliance (Advisory): Cipher.getInstance with no mode/transformation (defaults to ECB). Specify AES/GCM/NoPadding explicitly."
+    languages: [java]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  - id: deprecated-static-iv-java
+    patterns:
+      - pattern: new IvParameterSpec(new byte[]{...})
+    message: "PQC compliance (Advisory): static IV bytes in IvParameterSpec enable IV-reuse attacks. Derive a fresh random IV per message (SecureRandom)."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM + random IV
+
+  - id: deprecated-static-salt-java
+    patterns:
+      - pattern: new PBEKeySpec($P, new byte[]{...}, ...)
+    message: "PQC compliance (Advisory): PBEKeySpec with a static salt weakens password derivation. Use a fresh random salt per credential (SecureRandom)."
+    languages: [java]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: kdf
+      pqc_compliant: false
+      target_algorithm: random salt per credential
+
+  - id: weak-randomness-java
+    patterns:
+      - pattern: new Random($SEED)
+      - metavariable-regex:
+          metavariable: $SEED
+          regex: ^\d+$
+    message: "PQC compliance (Advisory): java.util.Random seeded with a constant — predictable output. Use SecureRandom for cryptographic material."
+    languages: [java]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: randomness
+      pqc_compliant: false
+      target_algorithm: SecureRandom
+
+  - id: deprecated-rsa-nopadding-java
+    patterns:
+      - pattern: Cipher.getInstance($ALG)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^['"]?.*rsa.*nopadding.*['"]?$
+    message: "PQC compliance (FIPS 203): RSA with NoPadding — direct textbook RSA, vulnerable to Bleichenbacher-style attacks and Shor's algorithm. Migrate to ML-KEM (Kyber)."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM
+
+  # ---- JavaScript / TypeScript ---------------------------------------------
+  - id: deprecated-ecb-js
+    patterns:
+      - pattern: crypto.createCipheriv($ALG, $K, $IV)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i).*ecb.*
+    message: "PQC compliance (Advisory): ECB mode leaks plaintext structure. Use aes-256-gcm with a fresh random IV."
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: aes-256-gcm
+
+  - id: deprecated-static-iv-js
+    patterns:
+      - pattern-either:
+          - pattern: crypto.createCipheriv($ALG, $K, "$IV")
+          - pattern: crypto.createCipheriv($ALG, $K, Buffer.from("$IV"))
+    message: "PQC compliance (Advisory): static string IV enables IV-reuse attacks. Generate a fresh random IV per message (crypto.randomBytes)."
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: aes-256-gcm + random IV
+
+  - id: deprecated-static-salt-js
+    patterns:
+      - pattern: crypto.pbkdf2Sync($ALG, $P, "$SALT", ...)
+    message: "PQC compliance (Advisory): pbkdf2 with a static salt weakens password derivation. Use a fresh random salt per credential (crypto.randomBytes)."
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: kdf
+      pqc_compliant: false
+      target_algorithm: random salt per credential
+
+  - id: weak-randomness-js
+    patterns:
+      - pattern: $KEY = Math.random()
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: (?i).*(key|iv|nonce|salt|token|secret|seed|password).*
+    message: "PQC compliance (Advisory): Math.random() is not cryptographically secure — predictable key/IV material. Use crypto.randomBytes / crypto.webcrypto.getRandomValues."
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: randomness
+      pqc_compliant: false
+      target_algorithm: crypto.randomBytes
+
+  # ---- Go ------------------------------------------------------------------
+  - id: weak-randomness-go
+    patterns:
+      - pattern: rand.NewSource($SEED)
+      - metavariable-regex:
+          metavariable: $SEED
+          regex: ^\d+$
+    message: "PQC compliance (Advisory): math/rand seeded with a constant — predictable output. Use crypto/rand for cryptographic material."
+    languages: [go]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: randomness
+      pqc_compliant: false
+      target_algorithm: crypto/rand
+
+  # ---- C / C++ -------------------------------------------------------------
+  - id: deprecated-c-ecb
+    patterns:
+      - pattern-either:
+          - pattern: EVP_aes_128_ecb()
+          - pattern: EVP_aes_192_ecb()
+          - pattern: EVP_aes_256_ecb()
+    message: "PQC compliance (Advisory): ECB cipher mode leaks plaintext structure. Use EVP_aes_256_gcm() with a fresh random IV."
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  # ---- PHP -----------------------------------------------------------------
+  - id: deprecated-ecb-php
+    patterns:
+      - pattern: mcrypt_encrypt($ALG, $K, $D, MCRYPT_MODE_ECB, ...)
+    message: "PQC compliance (Advisory): ECB mode leaks plaintext structure. Use openssl_encrypt with aes-256-gcm."
+    languages: [php]
+    severity: ERROR
+    metadata:
+      nist_standard: Advisory
+      category: symmetric
+      pqc_compliant: false
+      target_algorithm: AES-256-GCM
+
+  # ---- Python (semgrep rule: RSA PKCS#1 v1.5 padding) ----------------------
+  - id: deprecated-pkcs1v15-python
+    patterns:
+      - pattern: padding.PKCS1v15(...)
+    message: "PQC compliance (FIPS 203): RSA PKCS#1 v1.5 padding is vulnerable to Bleichenbacher-style oracle attacks and RSA is broken by Shor's algorithm. Migrate to ML-KEM (Kyber)."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      nist_standard: FIPS 203
+      category: key-encapsulation
+      pqc_compliant: false
+      target_algorithm: ML-KEM
+
+  # ---- Infra config (aux scanner): deprecated TLS protocol versions ---------
+  - id: deprecated-tls-protocols-config
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "PQC compliance (Advisory): TLS config enables deprecated protocols (TLS 1.0/1.1/SSLv3). Restrict to TLS 1.2+ and prefer TLS 1.3 with X25519MLKEM768 hybrid groups."
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: tls
+      pqc_compliant: false
+      target_algorithm: TLS 1.3 + ML-KEM
+
+  # ===========================================================================
+  # Dependency scanning extensions (deps.py — version + transitive)
+  # ===========================================================================
+
+  - id: dependency-vulnerable-version
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "Dependency manifest declares a known-vulnerable version of a cryptography library (advisory CVE matched). Upgrade to a patched release."
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: dependencies
+      pqc_compliant: false
+      target_algorithm: upgrade to patched version
+
+  - id: dependency-transitive-legacy-crypto-lib
+    patterns:
+      - pattern: piquachu_zzz_never_matches(...)
+    message: "Lockfile (possibly transitive) references a classical-crypto-capable library. Review whether legacy algorithms (RSA/ECC/DES/MD5/SHA-1) are reachable before migration freeze."
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      nist_standard: Advisory
+      category: dependencies
+      pqc_compliant: false
+      target_algorithm: review / upgrade
+
+  # ===========================================================================
+  # FIPS 206 — FN-DSA (FALCON): NIST's 4th standardized PQC algorithm
+  # ===========================================================================
+  # Falcon was announced for standardization in March 2025 and published as
+  # FIPS 206 (FN-DSA) in May 2025 — a lattice (NTRU), hash-and-sign signature
+  # scheme. Positive evidence only: there is no legacy "target" algorithm here
+  # because FN-DSA is itself a migration destination for ECDSA/RSA signatures
+  # (which map to FIPS 204 as the primary signature standard).
+
+  # ---- Python: liboqs + pqcrypto --------------------------------------------
+  - id: pqc-fndsa-python
+    patterns:
+      - pattern: oqs.Signature($ALG)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^['\"]?(FN-DSA-512|FN-DSA-1024|Falcon-512|Falcon-1024|Falcon512|Falcon1024)['\"]?$
+    message: "PQC compliant (FIPS 206): FN-DSA (FALCON) digital signature scheme detected — NIST-approved lattice-based post-quantum signatures (FIPS 206)."
+    languages: [python]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 206
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: FN-DSA
+
+  - id: pqc-fndsa-python-pqcrypto
+    patterns:
+      - pattern-either:
+          - pattern: pqcrypto.sign.falcon512.$FUNC(...)
+          - pattern: pqcrypto.sign.falcon1024.$FUNC(...)
+    message: "PQC compliant (FIPS 206): FN-DSA (FALCON) detected via the pqcrypto package (falcon512 / falcon1024)."
+    languages: [python]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 206
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: FN-DSA
+
+  # ---- Java: Bouncy Castle PQC (bcpqc) -------------------------------------
+  - id: pqc-fndsa-java
+    patterns:
+      - pattern-either:
+          - pattern: new Falcon512Signer()
+          - pattern: new Falcon1024Signer()
+          - pattern: new FalconKeyGenerationParameters(...)
+          - pattern: FalconParameters.falcon512
+          - pattern: FalconParameters.falcon1024
+    message: "PQC compliant (FIPS 206): FN-DSA (FALCON) detected via Bouncy Castle PQC (Falcon512Signer / Falcon1024Signer)."
+    languages: [java]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 206
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: FN-DSA
+
+  # ---- C/C++: liboqs + PQClean-style clean implementations ------------------
+  - id: pqc-fndsa-c
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: OQS_SIG_new($ALG)
+              - metavariable-regex:
+                  metavariable: $ALG
+                  regex: (?i).*(falcon|fndsa).*
+          - pattern: PQCLEAN_FALCON512_CLEAN_crypto_sign_keypair(...)
+          - pattern: PQCLEAN_FALCON1024_CLEAN_crypto_sign_keypair(...)
+          - pattern: PQCLEAN_FALCON512_CLEAN_crypto_sign_signature(...)
+          - pattern: PQCLEAN_FALCON1024_CLEAN_crypto_sign_signature(...)
+    message: "PQC compliant (FIPS 206): FN-DSA (FALCON) detected via liboqs (OQS_SIG_new) or PQClean clean implementations."
+    languages: [c, cpp]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 206
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: FN-DSA
+
+  # ---- Go ----------------------------------------------------------------
+  - id: pqc-fndsa-go
+    patterns:
+      - pattern-either:
+          - pattern: $PKG.Falcon512(...)
+          - pattern: $PKG.Falcon1024(...)
+          - pattern: $PKG.FN_DSA_512(...)
+          - pattern: $PKG.FN_DSA_1024(...)
+          - pattern: $PKG.fndsa512(...)
+          - pattern: $PKG.fndsa1024(...)
+    message: "PQC compliant (FIPS 206): FN-DSA (FALCON) identifiers detected in Go — NIST-approved post-quantum signatures (FIPS 206)."
+    languages: [go]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 206
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: FN-DSA
+
+  # ---- Rust: pqcrypto crate ------------------------------------------------
+  - id: pqc-fndsa-rust
+    patterns:
+      - pattern-inside: |
+          use pqcrypto_falcon::*;
+          ...
+      - pattern-either:
+          - pattern: keypair(...)
+          - pattern: detached_sign(...)
+          - pattern: verify_detached_signature(...)
+          - pattern: sign(...)
+          - pattern: pqcrypto_falcon::keypair(...)
+          - pattern: pqcrypto_falcon::detached_sign(...)
+          - pattern: pqcrypto_falcon::verify_detached_signature(...)
+    message: "PQC compliant (FIPS 206): FN-DSA (FALCON) detected via the Rust pqcrypto crate (pqcrypto_falcon)."
+    languages: [rust]
+    severity: INFO
+    metadata:
+      nist_standard: FIPS 206
+      category: signatures
+      pqc_compliant: true
+      target_algorithm: FN-DSA

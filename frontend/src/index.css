@@ -1,18 +1,494 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* frontend/src/index.css
+ * PiQuaChu design system — "Financial".
+ * Dark navy-black ground, warm orange actions, pale gold numerical emphasis,
+ * fine hairline boundaries and opaque panels. Michroma for titles and
+ * headings, IBM Plex Sans for statement and reading, IBM Plex Mono for data
+ * and metadata.
+ *
+ * One token layer: the `--dp-*` variables are the authoritative design-system
+ * tokens. The legacy component tokens (`--background`, `--surface`, `--primary`,
+ * …) are aliases onto them so every existing surface inherits the system.
+ * Components must use tokens — no raw hex in component files.
+ */
 
-body {
-  @apply bg-quantum-900 text-slate-200 antialiased selection:bg-quantum-accent selection:text-white;
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------------- */
+/* Authoritative design-system tokens                                        */
+/* ------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  /* Palette — warm mineral paper (secondary; this product is dark-first) */
+  --dp-color-ground: #f3efe8;
+  --dp-color-ground-tint: #e8e2d7;
+  --dp-color-panel: #fbf9f5;
+  --dp-color-accent: #b9600c;
+  --dp-color-value: #7a5a14;
+  --dp-color-ink: #14161c;
+  --dp-color-ink-muted: #4a4f5b;
+  --dp-color-line: #d5cdbf;
+
+  --dp-typography-display-face: "Michroma", "IBM Plex Sans", system-ui, sans-serif;
+  --dp-typography-body-face: "IBM Plex Sans", system-ui, sans-serif;
+  --dp-typography-data-face: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --dp-typography-body: 16px;
+  --dp-typography-supporting: 14px;
+  --dp-typography-metadata: 13px;
+  --dp-typography-body-leading: 1.6;
+  --dp-typography-reading-leading: 1.65;
+
+  --dp-spacing-cluster-gap: 24px;
+  --dp-spacing-compact-gap: 12px;
+
+  --dp-radius-panel: 5px;
+  --dp-radius-editorial: 4px;
+  --dp-radius-control: 40px;
+  --dp-border-hairline: 1px;
+  --dp-motion-interaction: 160ms;
+  --dp-motion-easing: ease;
+
+  /* Component tokens — mapped onto the palette above */
+  --background: var(--dp-color-ground);
+  --surface: var(--dp-color-panel);
+  --surface-raised: color-mix(in oklch, var(--dp-color-panel) 88%, white);
+  --surface-subtle: color-mix(in oklch, var(--dp-color-panel) 80%, var(--dp-color-ground-tint));
+  --foreground: var(--dp-color-ink);
+  --muted-foreground: var(--dp-color-ink-muted);
+  --border: var(--dp-color-line);
+  --border-strong: color-mix(in oklch, var(--dp-color-line) 60%, var(--dp-color-ink));
+
+  --primary: var(--dp-color-accent);
+  --primary-foreground: #fdfbf7;
+  --primary-subtle: color-mix(in oklab, var(--dp-color-accent) 12%, transparent);
+  --secondary: var(--dp-color-ground-tint);
+  --value: var(--dp-color-value);
+
+  --success: #2f7d57;
+  --success-subtle: color-mix(in oklab, #2f7d57 12%, transparent);
+  --warning: #8a6410;
+  --warning-subtle: color-mix(in oklab, #8a6410 14%, transparent);
+  --danger: #a6362b;
+  --danger-subtle: color-mix(in oklab, #a6362b 11%, transparent);
+  --info: #34557f;
+  --info-subtle: color-mix(in oklab, #34557f 11%, transparent);
+
+  --focus-ring: var(--dp-color-accent);
+  --lattice: color-mix(in oklab, var(--dp-color-ink) 7%, transparent);
+
+  /* Warm light is local to the hero object and the closing field. */
+  --warm-light: color-mix(in oklab, var(--dp-color-accent) 16%, transparent);
+  --glow-sm: 0 0 0 1px color-mix(in oklab, var(--dp-color-accent) 18%, transparent);
+  --glow-md: 0 0 0 1px color-mix(in oklab, var(--dp-color-accent) 20%, transparent);
+  --glow-lg: 0 0 0 1px color-mix(in oklab, var(--dp-color-accent) 22%, transparent);
+  --glow-border: 0 0 0 1px color-mix(in oklab, var(--dp-color-accent) 24%, transparent);
+
+  --elev-sm: 0 1px 2px color-mix(in oklab, var(--dp-color-ink) 10%, transparent);
+  --elev-md: 0 2px 6px color-mix(in oklab, var(--dp-color-ink) 10%, transparent);
+  --elev-lg: 0 6px 14px color-mix(in oklab, var(--dp-color-ink) 12%, transparent);
+  --elev-xl: 0 14px 30px color-mix(in oklab, var(--dp-color-ink) 14%, transparent);
+
+  --radius-sm: 3px;
+  --radius-md: var(--dp-radius-panel);
+  --radius-lg: var(--dp-radius-panel);
+  --radius-control: var(--dp-radius-control);
 }
 
-/* Custom scrollbar for a polished feel */
+/* ------------------------------------------------------------------------- */
+/* Dark theme — the instrument room (default)                                */
+/* ------------------------------------------------------------------------- */
+.dark {
+  color-scheme: dark;
+
+  --dp-color-ground: #07090e;
+  --dp-color-ground-tint: #101522;
+  --dp-color-panel: #10141c;
+  --dp-color-accent: #ff951f;
+  --dp-color-value: #edcd8c;
+  --dp-color-ink: #f4f5f7;
+  --dp-color-ink-muted: #c9ced8;
+  --dp-color-line: #303139;
+
+  --surface-raised: #161b26;
+  --surface-subtle: #1b212c;
+  --border-strong: #444652;
+
+  --primary-foreground: #0a0c12;
+  --primary-subtle: color-mix(in oklab, #ff951f 13%, transparent);
+  --value: #edcd8c;
+
+  --success: #7fd3a8;
+  --success-subtle: color-mix(in oklab, #7fd3a8 13%, transparent);
+  --warning: #ffc266;
+  --warning-subtle: color-mix(in oklab, #ffc266 13%, transparent);
+  --danger: #ff8a7a;
+  --danger-subtle: color-mix(in oklab, #ff8a7a 14%, transparent);
+  --info: #9db6e0;
+  --info-subtle: color-mix(in oklab, #9db6e0 13%, transparent);
+
+  --lattice: color-mix(in oklab, #f4f5f7 5%, transparent);
+  --warm-light: color-mix(in oklab, #ff951f 20%, transparent);
+
+  --elev-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --elev-md: 0 2px 8px rgb(0 0 0 / 0.4);
+  --elev-lg: 0 8px 18px rgb(0 0 0 / 0.42);
+  --elev-xl: 0 18px 38px rgb(0 0 0 / 0.5);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Tailwind theme mapping                                                    */
+/* ------------------------------------------------------------------------- */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-secondary: var(--secondary);
+  --color-value: var(--value);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-info: var(--info);
+  --color-info-subtle: var(--info-subtle);
+  --color-focus-ring: var(--focus-ring);
+
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-display: var(--dp-typography-display-face);
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-body: 16px;
+  --text-supporting: 14px;
+  --text-metadata: 13px;
+  --leading-body: 1.6;
+  --leading-reading: 1.65;
+
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 5px;
+  --radius-control: 40px;
+
+  --shadow-glow-sm: var(--glow-sm);
+  --shadow-glow-md: var(--glow-md);
+  --shadow-glow-lg: var(--glow-lg);
+  --shadow-glow-border: var(--glow-border);
+  --shadow-elev-sm: var(--elev-sm);
+  --shadow-elev-md: var(--elev-md);
+  --shadow-elev-lg: var(--elev-lg);
+  --shadow-elev-xl: var(--elev-xl);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Base                                                                      */
+/* ------------------------------------------------------------------------- */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html,
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    background-color: var(--background);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: var(--dp-typography-body);
+    line-height: var(--dp-typography-body-leading);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  /* Titles and headings use the display face. Michroma ships a single 400
+   * weight and is much wider than the body face, so no weight is synthesised
+   * (see font-synthesis on body) and tracking is tightened to hold the line. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-synthesis-weight: none;
+    letter-spacing: -0.02em;
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  ::selection {
+    background: var(--dp-color-accent);
+    color: var(--primary-foreground);
+  }
+
+  /* Tabular figures everywhere numbers are compared vertically. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Small monospace eyebrow used above every page and section title. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted-foreground);
+  }
+}
+
+/* Thin, quiet scrollbars that follow the theme. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 9px;
+  height: 9px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-quantum-900;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-quantum-700 rounded-full hover:bg-quantum-accent transition-colors;
+  background: var(--border-strong);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Structural motifs                                                         */
+/* ------------------------------------------------------------------------- */
+
+/* The default panel treatment: opaque, hairline-bounded, no glass or blur. */
+.surface-glass {
+  background-color: var(--surface);
+}
+
+/* Ambient layer kept as a no-op hook: warm light is local, never page-wide. */
+.app-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Hero object: thin offset outlines behind the main panel, giving depth
+ * without obscuring content. Depth reduces on narrow screens so nothing
+ * clips or covers the page copy. */
+.offset-frame {
+  position: relative;
+  isolation: isolate;
+}
+.offset-frame::before,
+.offset-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: var(--dp-border-hairline) solid var(--border);
+  border-radius: var(--dp-radius-panel);
+  pointer-events: none;
+}
+.offset-frame::before {
+  transform: translate(10px, 10px);
+  opacity: 0.75;
+}
+.offset-frame::after {
+  transform: translate(20px, 20px);
+  opacity: 0.4;
+}
+@media (max-width: 800px) {
+  .offset-frame::before {
+    transform: translate(6px, 6px);
+  }
+  .offset-frame::after {
+    transform: translate(12px, 12px);
+  }
+}
+@media (max-width: 520px) {
+  .offset-frame::after {
+    display: none;
+  }
+  .offset-frame::before {
+    transform: translate(4px, 4px);
+  }
+}
+
+/* Local warm light behind a framed object. Purely decorative. */
+.warm-light {
+  position: relative;
+  isolation: isolate;
+}
+.warm-light::before {
+  content: "";
+  position: absolute;
+  inset: -12% -8%;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 9999px;
+  filter: blur(90px);
+  background: radial-gradient(
+    circle at 60% 40%,
+    var(--warm-light) 0%,
+    transparent 70%
+  );
+}
+
+/* Fine ruled field, used sparingly behind one focal surface. */
+.lattice-field {
+  background-image:
+    linear-gradient(to right, var(--lattice) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--lattice) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Ruled fact strip: supporting facts separated by hairlines. */
+.ruled-strip {
+  border-top: var(--dp-border-hairline) solid var(--border);
+  border-bottom: var(--dp-border-hairline) solid var(--border);
+}
+.ruled-strip > * + * {
+  border-left: var(--dp-border-hairline) solid var(--border);
+}
+
+/* Hero emphasis: a warm marker band under one phrase in the promise, with a
+ * slow sheen that crosses it on its own. Decorative only — the text keeps full
+ * contrast, the band wraps with the phrase, and reduced motion leaves the
+ * static band in place. */
+.hero-mark {
+  --hero-mark-fill: color-mix(in oklab, var(--primary) 26%, transparent);
+  --hero-mark-sheen: color-mix(in oklab, var(--value) 60%, transparent);
+  background-image:
+    linear-gradient(90deg, transparent, var(--hero-mark-sheen), transparent),
+    linear-gradient(var(--hero-mark-fill), var(--hero-mark-fill));
+  background-repeat: no-repeat;
+  background-size: 42% 0.28em, 100% 0.28em;
+  background-position: -70% 88%, 0 88%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  animation: hero-mark-sweep 7s var(--ease-out-soft) infinite;
+}
+
+@keyframes hero-mark-sweep {
+  0%,
+  12% {
+    background-position: -70% 88%, 0 88%;
+  }
+  52%,
+  100% {
+    background-position: 170% 88%, 0 88%;
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Motion — brief control changes only. Frames, light and rules stay static.  */
+/* ------------------------------------------------------------------------- */
+.spin {
+  animation: spin 1.2s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* One entrance per page region — not per row. */
+.rise-in {
+  animation: rise-in 220ms var(--dp-motion-easing) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============ Print / PDF report (legacy console export) ============ */
+@media print {
+  body {
+    background: #ffffff !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #report-content,
+  #report-content * {
+    visibility: visible;
+  }
+  #report-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: #ffffff !important;
+    color: #14161f !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 24px !important;
+  }
+  #report-content * {
+    color: #14161f !important;
+    border-color: #d7d9e2 !important;
+    background: #ffffff !important;
+  }
+  #report-content table th {
+    background: #f2f3f7 !important;
+  }
+  #report-content .chakra-modal__close-btn {
+    display: none !important;
+  }
 }

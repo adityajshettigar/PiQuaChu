@@ -1,14 +1,19 @@
+<!-- frontend/index.html -->
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/shield-logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
-    <title>Cipher Sentinel</title>
+    <meta name="theme-color" content="#07090e" />
+    <meta
+      name="description"
+      content="PiQuaChu — static post-quantum cryptography discovery and evidence workbench (FIPS 203/204/205; FIPS 206 in development). Static evidence, not a compliance certificate."
+    />
+    <!-- Fonts are self-hosted via @fontsource (no remote font CDN). -->
+    <title>PiQuaChu — cryptography evidence workbench</title>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

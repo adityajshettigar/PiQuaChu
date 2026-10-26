@@ -1,0 +1,95 @@
+# PiQuaChu — GitLab CI: PQC scan for merge requests
+#
+# Notes:
+# * This pipeline emits three artifacts from ONE normalized finding set:
+#     - piquachu.sarif        SARIF 2.1.0 (official OASIS schema validated)
+#     - gl-sast-report.json   GitLab SAST report, declared under
+#                             artifacts:reports:sast for the Security tab
+#     - piquachu-report.json  full PiQuaChu report (evidence the SAST view omits)
+#   The SAST exporter is `backend/gitlab_sast.py`; it validates against the
+#   pinned official schema in `backend/schemas/` (tag v15.2.5) before writing,
+#   and refuses (exit 2) rather than emitting an invalid artifact. Only
+#   actionable ERROR/WARNING findings become vulnerabilities: PASS evidence,
+#   informational and inconclusive findings stay in the JSON/SARIF artifacts
+#   and the count is reported in `scan.messages`.
+# * Schema/artifact correctness is verified locally (test_phase3.py). Rendering
+#   in the GitLab Security tab additionally depends on the instance's licence
+#   tier and MR-pipeline support — that is a provider-side check, not a
+#   schema claim.
+# * Gate semantics are identical to the GitHub workflow: `--fail-on new-high`
+#   fails ONLY on NEW actionable (ERROR-severity) findings vs the baseline
+#   read from the merge-request diff base — never on aggregate score deltas.
+# * No secrets/protected variables are required: the CLI runs locally on the
+#   runner (no X-API-Key, no LLM keys). That is also why forked-project MR
+#   pipelines work — they run without protected variables and we need none.
+# * Shallow clones: GIT_DEPTH=0 guarantees `CI_MERGE_REQUEST_DIFF_BASE_SHA`
+#   is present for the baseline lookup. Reduce depth only if you switch the
+#   fallbacks below.
+# * Image is pinned to an exact version tag (python:3.12.7). Digest-pinning
+#   (`image@sha256:…`) is recommended for hardened environments.
+# * No privileged container, no docker-in-docker; default runner tags suffice.
+# * Artifacts: SARIF + JSON + log, retained 14 days (`expire_in`).
+# * Baseline updates are NEVER part of CI — `--update-baseline` is a local,
+#   explicit action (the CLI refuses it when CI env vars are set, unless
+#   --allow-in-ci is passed).
+#
+# Bootstrap (local, then commit):
+#   python backend/cipher_cli.py scan . --update-baseline .piquachu-baseline.json
+#   git add .piquachu-baseline.json && git commit -m "chore: PQC scan baseline"
+
+stages:
+  - security
+
+variables:
+  GIT_DEPTH: "0" # full history so the MR diff-base baseline can be read
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+piquachu-pqc-scan:
+  stage: security
+  image: python:3.12.7 # pinned exact tag; digest-pin in hardened setups
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - python -m pip install --upgrade pip
+    - pip install --no-cache-dir -r backend/requirements.txt
+    - |
+      set -euo pipefail
+      BASE_ARGS=(--no-baseline)   # explicit policy: everything counts as new
+      if [ -n "${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}" ] \
+         && git show "${CI_MERGE_REQUEST_DIFF_BASE_SHA}:.piquachu-baseline.json" > /tmp/pqu-base.json 2>/dev/null; then
+        BASE_ARGS=(--baseline /tmp/pqu-base.json)
+        echo "PiQuaChu: baseline from MR diff base ${CI_MERGE_REQUEST_DIFF_BASE_SHA}"
+      elif [ -f .piquachu-baseline.json ]; then
+        BASE_ARGS=(--baseline .piquachu-baseline.json)
+        echo "PiQuaChu: baseline from this checkout"
+      else
+        echo "PiQuaChu: no baseline found — explicit --no-baseline (all findings count as new)"
+      fi
+      set +e
+      python backend/cipher_cli.py scan . \
+        --sarif piquachu.sarif \
+        --gitlab-sast gl-sast-report.json \
+        --output piquachu-report.json \
+        --fail-on new-high \
+        "${BASE_ARGS[@]}" 2>&1 | tee piquachu-scan.log
+      rc=${PIPESTATUS[0]}
+      set -e
+      # rc 0 = pass, 1 = gate triggered (new actionable findings),
+      # 2 = baseline/usage error (fail safe). All three surface as a red
+      # pipeline for 1/2; artifacts are still published (when: always).
+      if [ "$rc" -ne 0 ]; then
+        echo "PiQuaChu: exiting with status ${rc} (0=pass, 1=new-finding gate, 2=baseline error)"
+      fi
+      exit "$rc"
+  artifacts:
+    when: always
+    expire_in: 14 days
+    reports:
+      sast: gl-sast-report.json
+    paths:
+      - piquachu.sarif # SARIF 2.1.0 (official-schema validated by the CLI)
+      - gl-sast-report.json # GitLab SAST schema v15.2.5, validated before write
+      - piquachu-report.json
+      - piquachu-scan.log
+  allow_failure: false

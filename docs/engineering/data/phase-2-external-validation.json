@@ -1,0 +1,1220 @@
+{
+  "metric_source": "external-ground-truth",
+  "generated_at": "2026-10-18T19:08:03.759647+00:00",
+  "targets": [
+    "owasp-juice-shop",
+    "paramiko"
+  ],
+  "confusion": {
+    "tp": 18,
+    "fp": 3,
+    "fn": 21,
+    "tn": 13,
+    "uncertain": 2
+  },
+  "metrics": {
+    "micro": {
+      "precision": 0.8571,
+      "recall": 0.4615,
+      "f1": 0.6,
+      "definition": "pooled over all reviewed call sites"
+    },
+    "macro": {
+      "precision": 0.921,
+      "recall": 0.3831,
+      "f1": 0.52,
+      "definition": "unweighted mean of per-target metrics"
+    }
+  },
+  "per_target": [
+    {
+      "name": "owasp-juice-shop",
+      "commit": "39b46860612990ae18d499a20472172839fe8c77",
+      "sites": 13,
+      "confusion": {
+        "tp": 2,
+        "fp": 0,
+        "fn": 6,
+        "tn": 5,
+        "uncertain": 0,
+        "ambiguous_attributions": 0
+      },
+      "metrics": {
+        "precision": 1.0,
+        "recall": 0.25,
+        "f1": 0.4,
+        "aggregation": "micro (per reviewed call site)"
+      },
+      "parser_failures": {
+        "python": 2
+      }
+    },
+    {
+      "name": "paramiko",
+      "commit": "ed8b09751ff20340332d4b1bb2b10e32aedc57ff",
+      "sites": 43,
+      "confusion": {
+        "tp": 16,
+        "fp": 3,
+        "fn": 15,
+        "tn": 8,
+        "uncertain": 2,
+        "ambiguous_attributions": 0
+      },
+      "metrics": {
+        "precision": 0.8421,
+        "recall": 0.5161,
+        "f1": 0.64,
+        "aggregation": "micro (per reviewed call site)"
+      },
+      "parser_failures": {}
+    }
+  ],
+  "details": [
+    {
+      "target": {
+        "name": "owasp-juice-shop",
+        "url": "https://github.com/juice-shop/juice-shop.git",
+        "ref": "v17.1.1",
+        "commit": "39b46860612990ae18d499a20472172839fe8c77",
+        "pinned_commit": "39b46860612990ae18d499a20472172839fe8c77",
+        "pinned_verified": true,
+        "license": "MIT",
+        "languages": [
+          "TypeScript",
+          "JavaScript"
+        ],
+        "scope": [
+          "."
+        ],
+        "exclusions": [
+          "node_modules",
+          "dist",
+          "build",
+          "coverage",
+          "vendor",
+          ".git",
+          "__pycache__",
+          "venv",
+          ".venv",
+          "target",
+          "out"
+        ],
+        "note": "Integration target with a deliberately small crypto surface; it exercises discovery on a real Node/TypeScript application. It does not contain enough crypto for a meaningful PQC recall measurement, which is exactly why a crypto-dense second target is included.",
+        "known_blind_spots": [
+          "JWT key material files (encryptionkeys/*) are covered by the key-material engine, not measured here.",
+          "Third-party frontend bundles under node_modules are excluded by the scanner's default skip list."
+        ]
+      },
+      "scan": {
+        "engine": "semgrep",
+        "scopes": [
+          {
+            "scope": ".",
+            "findings": 2,
+            "engine": "semgrep"
+          }
+        ],
+        "findings": 2,
+        "scored_findings": 2,
+        "inconclusive_findings": 0,
+        "files_with_findings": 2,
+        "files_analyzed": {
+          "python": 1
+        },
+        "parser_failures": {
+          "python": 2
+        },
+        "parser_failure_files": []
+      },
+      "ground_truth": {
+        "reviewer": "PiQuaChu maintainer review (single reviewer, documented rubric)",
+        "review_date": "2026-10-19",
+        "rubric": {
+          "risk": "Quantum-vulnerable or deprecated cryptography actually selected in code at this site: RSA/DSA/ECDSA/EdDSA/DH/ECDH/X25519 key generation, signing or verification; MD5/SHA-1 as a digest for signatures, MACs, KDFs or fingerprints; DES/3DES/RC4/Blowfish; AES-128; ECB mode; non-cryptographic randomness used for a secret.",
+          "benign": "Cryptography at this site that must NOT be reported as legacy risk: SHA-256 or stronger digests, HMAC-SHA-256, AES-256 with a salt/random-derived IV, a CSPRNG (os.urandom / crypto.randomBytes), a generic helper that does not itself pick an algorithm, or an algorithm name appearing in a non-crypto string/query.",
+          "uncertain": "The algorithm is chosen dynamically from a table the reviewer could not statically pin down at this site (for example a cipher class looked up from parsed key-file metadata). Recorded separately; never scored as TP/FP/FN/TN."
+        },
+        "match_tolerance_lines": 2,
+        "counts": {
+          "risk": 8,
+          "benign": 5,
+          "uncertain": 0
+        }
+      },
+      "confusion": {
+        "tp": 2,
+        "fp": 0,
+        "fn": 6,
+        "tn": 5,
+        "uncertain": 0,
+        "ambiguous_attributions": 0
+      },
+      "metrics": {
+        "precision": 1.0,
+        "recall": 0.25,
+        "f1": 0.4,
+        "aggregation": "micro (per reviewed call site)"
+      },
+      "by_category": {
+        "hashing": {
+          "sites": 2,
+          "detected": 2,
+          "recall": 1.0
+        },
+        "randomness": {
+          "sites": 1,
+          "detected": 0,
+          "recall": 0.0
+        },
+        "signature": {
+          "sites": 5,
+          "detected": 0,
+          "recall": 0.0
+        }
+      },
+      "confidence_tiers_of_true_positives": {
+        "medium": 2
+      },
+      "sites": [
+        {
+          "id": "JS-001",
+          "file": "lib/insecurity.ts",
+          "line": 43,
+          "category": "hashing",
+          "label": "risk",
+          "observed": "crypto.createHash('md5')",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "nodejs-weak-crypto"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "JS-002",
+          "file": "lib/insecurity.ts",
+          "line": 55,
+          "category": "randomness",
+          "label": "risk",
+          "observed": "Math.random() as a JWT secret",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "JS-003",
+          "file": "lib/insecurity.ts",
+          "line": 56,
+          "category": "signature",
+          "label": "risk",
+          "observed": "jwt.sign(..., algorithm 'RS256')",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "JS-004",
+          "file": "lib/insecurity.ts",
+          "line": 57,
+          "category": "signature",
+          "label": "risk",
+          "observed": "jws.verify(token, publicKey)",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "JS-005",
+          "file": "lib/insecurity.ts",
+          "line": 191,
+          "category": "signature",
+          "label": "risk",
+          "observed": "jwt.verify(token, publicKey)",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "JS-006",
+          "file": "routes/verify.ts",
+          "line": 115,
+          "category": "signature",
+          "label": "risk",
+          "observed": "jwt.verify(token, publicKey)",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "JS-007",
+          "file": "routes/chatbot.ts",
+          "line": 240,
+          "category": "signature",
+          "label": "risk",
+          "observed": "jwt.verify(token, publicKey)",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "JS-013",
+          "file": "Gruntfile.js",
+          "line": 77,
+          "category": "hashing",
+          "label": "risk",
+          "observed": "crypto.createHash('md5')",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "nodejs-weak-crypto"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "JS-008",
+          "file": "lib/utils.ts",
+          "line": 146,
+          "category": "randomness",
+          "label": "benign",
+          "observed": "crypto.randomBytes()",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "JS-009",
+          "file": "lib/insecurity.ts",
+          "line": 44,
+          "category": "hashing",
+          "label": "benign",
+          "observed": "createHmac('sha256', ...)",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "JS-010",
+          "file": "lib/insecurity.ts",
+          "line": 152,
+          "category": "hashing",
+          "label": "benign",
+          "observed": "createHmac('sha256', ...)",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "JS-011",
+          "file": "routes/verify.ts",
+          "line": 89,
+          "category": "configuration",
+          "label": "benign",
+          "observed": "challenge algorithm 'HS256'",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "JS-012",
+          "file": "routes/verify.ts",
+          "line": 275,
+          "category": "non-crypto",
+          "label": "benign",
+          "observed": "'%md5%' SQL LIKE filter",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        }
+      ],
+      "uncertain_sites": [],
+      "false_positives": [],
+      "false_negatives": [
+        "JS-002",
+        "JS-003",
+        "JS-004",
+        "JS-005",
+        "JS-006",
+        "JS-007"
+      ],
+      "generated_at": "2026-10-18T19:08:00.207205+00:00",
+      "metric_source": "external-ground-truth",
+      "ruleset": {
+        "version": "ruleset-v2",
+        "sha256": "c3d95c356257b3648d1ff4566ad0b7a2eb9f9eedab95887c48967113a4545493",
+        "rules": 106,
+        "file": "rules.yaml"
+      },
+      "engine_version": "2.3.0",
+      "reproduce": [
+        "git clone --depth 1 --branch v17.1.1 https://github.com/juice-shop/juice-shop.git /tmp/pqc-ext/owasp-juice-shop",
+        "python -m benchmark.external_eval --target owasp-juice-shop --repo /tmp/pqc-ext/owasp-juice-shop"
+      ]
+    },
+    {
+      "target": {
+        "name": "paramiko",
+        "url": "https://github.com/paramiko/paramiko.git",
+        "ref": "3.5.1",
+        "commit": "ed8b09751ff20340332d4b1bb2b10e32aedc57ff",
+        "pinned_commit": "ed8b09751ff20340332d4b1bb2b10e32aedc57ff",
+        "pinned_verified": true,
+        "license": "LGPL-2.1",
+        "languages": [
+          "Python"
+        ],
+        "scope": [
+          "paramiko"
+        ],
+        "exclusions": [
+          "tests/**",
+          "demos/**",
+          "sites/**",
+          "build/**"
+        ],
+        "note": "Crypto-dense SSH library: classical key exchange, host keys, signatures, private-key envelope crypto and MAC negotiation.",
+        "known_blind_spots": [
+          "kex_group1/14/16/gex: custom big-integer Diffie-Hellman and modular-exponentiation code with no library call site (name/constant heuristics only).",
+          "primes.py group constants (data, not a call site)."
+        ]
+      },
+      "scan": {
+        "engine": "semgrep+ast",
+        "scopes": [
+          {
+            "scope": "paramiko",
+            "findings": 19,
+            "engine": "semgrep+ast"
+          }
+        ],
+        "findings": 19,
+        "scored_findings": 19,
+        "inconclusive_findings": 0,
+        "files_with_findings": 9,
+        "files_analyzed": {
+          "python": 46
+        },
+        "parser_failures": {},
+        "parser_failure_files": []
+      },
+      "ground_truth": {
+        "reviewer": "PiQuaChu maintainer review (single reviewer, documented rubric)",
+        "review_date": "2026-10-19",
+        "rubric": {
+          "risk": "Quantum-vulnerable or deprecated cryptography actually selected in code at this site: RSA/DSA/ECDSA/EdDSA/DH/ECDH/X25519 key generation, signing or verification; MD5/SHA-1 as a digest for signatures, MACs, KDFs or fingerprints; DES/3DES/RC4/Blowfish; AES-128; ECB mode; non-cryptographic randomness used for a secret.",
+          "benign": "Cryptography at this site that must NOT be reported as legacy risk: SHA-256 or stronger digests, HMAC-SHA-256, AES-256 with a salt/random-derived IV, a CSPRNG (os.urandom / crypto.randomBytes), a generic helper that does not itself pick an algorithm, or an algorithm name appearing in a non-crypto string/query.",
+          "uncertain": "The algorithm is chosen dynamically from a table the reviewer could not statically pin down at this site (for example a cipher class looked up from parsed key-file metadata). Recorded separately; never scored as TP/FP/FN/TN."
+        },
+        "match_tolerance_lines": 2,
+        "counts": {
+          "risk": 31,
+          "benign": 10,
+          "uncertain": 2
+        }
+      },
+      "confusion": {
+        "tp": 16,
+        "fp": 3,
+        "fn": 15,
+        "tn": 8,
+        "uncertain": 2,
+        "ambiguous_attributions": 0
+      },
+      "metrics": {
+        "precision": 0.8421,
+        "recall": 0.5161,
+        "f1": 0.64,
+        "aggregation": "micro (per reviewed call site)"
+      },
+      "by_category": {
+        "signature": {
+          "sites": 8,
+          "detected": 6,
+          "recall": 0.75
+        },
+        "key-generation": {
+          "sites": 3,
+          "detected": 2,
+          "recall": 0.6667
+        },
+        "key-exchange": {
+          "sites": 7,
+          "detected": 5,
+          "recall": 0.7143
+        },
+        "hashing": {
+          "sites": 5,
+          "detected": 3,
+          "recall": 0.6
+        },
+        "symmetric": {
+          "sites": 6,
+          "detected": 0,
+          "recall": 0.0
+        },
+        "key-derivation": {
+          "sites": 1,
+          "detected": 0,
+          "recall": 0.0
+        },
+        "configuration": {
+          "sites": 1,
+          "detected": 0,
+          "recall": 0.0
+        }
+      },
+      "confidence_tiers_of_true_positives": {
+        "medium": 16
+      },
+      "sites": [
+        {
+          "id": "PAR-001",
+          "file": "dsskey.py",
+          "line": 121,
+          "category": "signature",
+          "label": "risk",
+          "observed": "DSA sign with hashes.SHA1()",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "weak-crypto-python-sha1"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-002",
+          "file": "dsskey.py",
+          "line": 159,
+          "category": "signature",
+          "label": "risk",
+          "observed": "DSA verify with hashes.SHA1()",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "weak-crypto-python-sha1"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-003",
+          "file": "dsskey.py",
+          "line": 211,
+          "category": "key-generation",
+          "label": "risk",
+          "observed": "dsa.generate_private_key(...)",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-004",
+          "file": "ecdsakey.py",
+          "line": 222,
+          "category": "signature",
+          "label": "risk",
+          "observed": "EC private key sign (ECDSA)",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "deprecated-ecdsa-python-cryptography"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-005",
+          "file": "ecdsakey.py",
+          "line": 238,
+          "category": "signature",
+          "label": "risk",
+          "observed": "EC public key verify (ECDSA)",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "deprecated-ecdsa-python-cryptography"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-006",
+          "file": "ecdsakey.py",
+          "line": 277,
+          "category": "key-generation",
+          "label": "risk",
+          "observed": "ec.generate_private_key(curve, ...)",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "deprecated-ecdh-python-cryptography"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-007",
+          "file": "ed25519key.py",
+          "line": 153,
+          "category": "signature",
+          "label": "risk",
+          "observed": "nacl.signing.SigningKey(...)",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-008",
+          "file": "kex_curve25519.py",
+          "line": 30,
+          "category": "key-exchange",
+          "label": "risk",
+          "observed": "X25519PrivateKey.generate()",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "deprecated-ecdh-python-cryptography"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-009",
+          "file": "kex_curve25519.py",
+          "line": 45,
+          "category": "key-exchange",
+          "label": "risk",
+          "observed": "X25519PrivateKey.generate()",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "deprecated-ecdh-python-cryptography"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-010",
+          "file": "kex_ecdh_nist.py",
+          "line": 59,
+          "category": "key-exchange",
+          "label": "risk",
+          "observed": "ec.generate_private_key(...)",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "deprecated-ecdh-python-cryptography"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-042",
+          "file": "kex_ecdh_nist.py",
+          "line": 71,
+          "category": "key-exchange",
+          "label": "risk",
+          "observed": "self.P.exchange(ec.ECDH(), self.Q_C)",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "deprecated-ecdh-python-cryptography"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-043",
+          "file": "kex_ecdh_nist.py",
+          "line": 117,
+          "category": "key-exchange",
+          "label": "risk",
+          "observed": "self.P.exchange(ec.ECDH(), self.Q_S)",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "deprecated-ecdh-python-cryptography"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-011",
+          "file": "kex_gss.py",
+          "line": 230,
+          "category": "hashing",
+          "label": "risk",
+          "observed": "sha1(...).digest()",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "weak-crypto-python-sha1"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-012",
+          "file": "kex_gss.py",
+          "line": 269,
+          "category": "hashing",
+          "label": "risk",
+          "observed": "sha1(...).digest()",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "weak-crypto-python-sha1"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-013",
+          "file": "kex_gss.py",
+          "line": 532,
+          "category": "hashing",
+          "label": "risk",
+          "observed": "sha1(...).digest()",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-014",
+          "file": "kex_gss.py",
+          "line": 634,
+          "category": "hashing",
+          "label": "risk",
+          "observed": "sha1(...).digest()",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-015",
+          "file": "pkey.py",
+          "line": 105,
+          "category": "symmetric",
+          "label": "risk",
+          "observed": "AES-128-CBC envelope entry",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-016",
+          "file": "pkey.py",
+          "line": 117,
+          "category": "symmetric",
+          "label": "risk",
+          "observed": "TripleDES (DES-EDE3-CBC) entry",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-017",
+          "file": "pkey.py",
+          "line": 358,
+          "category": "hashing",
+          "label": "risk",
+          "observed": "md5(self.asbytes()).digest()",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "weak-crypto-python-md5"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-018",
+          "file": "pkey.py",
+          "line": 594,
+          "category": "key-derivation",
+          "label": "risk",
+          "observed": "util.generate_key_bytes(md5, salt, password, keysize)",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-019",
+          "file": "rsakey.py",
+          "line": 41,
+          "category": "signature",
+          "label": "risk",
+          "observed": "\"ssh-rsa\": hashes.SHA1 (algorithm map)",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-020",
+          "file": "rsakey.py",
+          "line": 125,
+          "category": "signature",
+          "label": "risk",
+          "observed": "RSA sign with padding.PKCS1v15()",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "deprecated-pkcs1v15-python"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-021",
+          "file": "rsakey.py",
+          "line": 154,
+          "category": "signature",
+          "label": "risk",
+          "observed": "RSA verify with padding.PKCS1v15()",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "deprecated-pkcs1v15-python"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-022",
+          "file": "rsakey.py",
+          "line": 188,
+          "category": "key-generation",
+          "label": "risk",
+          "observed": "rsa.generate_private_key(public_exponent=65537, ...)",
+          "detected": true,
+          "inconclusive_only": false,
+          "rules": [
+            "deprecated-rsa-python-cryptography"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-023",
+          "file": "transport.py",
+          "line": 195,
+          "category": "configuration",
+          "label": "risk",
+          "observed": "preferred MAC list including hmac-sha1 / hmac-md5",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-024",
+          "file": "transport.py",
+          "line": 229,
+          "category": "key-exchange",
+          "label": "risk",
+          "observed": "preferred KEX list including diffie-hellman-*-sha1",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-025",
+          "file": "transport.py",
+          "line": 236,
+          "category": "key-exchange",
+          "label": "risk",
+          "observed": "GSS key-exchange list including gss-*-sha1",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-026",
+          "file": "transport.py",
+          "line": 263,
+          "category": "symmetric",
+          "label": "risk",
+          "observed": "aes128-ctr/cbc entries in _cipher_info",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-027",
+          "file": "transport.py",
+          "line": 269,
+          "category": "symmetric",
+          "label": "risk",
+          "observed": "aes192 entry in _cipher_info",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-028",
+          "file": "transport.py",
+          "line": 275,
+          "category": "symmetric",
+          "label": "risk",
+          "observed": "aes256-cbc entry in _cipher_info",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-029",
+          "file": "transport.py",
+          "line": 281,
+          "category": "symmetric",
+          "label": "risk",
+          "observed": "3des-cbc entry in _cipher_info (TripleDES)",
+          "detected": false,
+          "inconclusive_only": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-030",
+          "file": "pkey.py",
+          "line": 111,
+          "category": "symmetric",
+          "label": "benign",
+          "observed": "AES-256-CBC entry with salt-derived IV",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-031",
+          "file": "pkey.py",
+          "line": 369,
+          "category": "hashing",
+          "label": "benign",
+          "observed": "sha256(bytes(self))",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-032",
+          "file": "pkey.py",
+          "line": 633,
+          "category": "symmetric",
+          "label": "benign",
+          "observed": "modes.CBC for aes256-cbc private key",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-033",
+          "file": "pkey.py",
+          "line": 667,
+          "category": "symmetric",
+          "label": "benign",
+          "observed": "Cipher(algorithms.AES(key), mode(iv)) with bcrypt key",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-034",
+          "file": "pkey.py",
+          "line": 654,
+          "category": "key-derivation",
+          "label": "benign",
+          "observed": "bcrypt.kdf(...)",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-035",
+          "file": "util.py",
+          "line": 142,
+          "category": "key-derivation",
+          "label": "benign",
+          "observed": "def generate_key_bytes(hash_alg, salt, key, nbytes)",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-036",
+          "file": "config.py",
+          "line": 449,
+          "category": "non-crypto",
+          "label": "benign",
+          "observed": "sha1(tohash.encode()).hexdigest() for the '%C' token",
+          "detected": true,
+          "rules": [
+            "weak-crypto-python-sha1"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-037",
+          "file": "hostkeys.py",
+          "line": 296,
+          "category": "non-crypto",
+          "label": "benign",
+          "observed": "os.urandom(sha1().digest_size) (size only)",
+          "detected": true,
+          "rules": [
+            "weak-crypto-python-sha1"
+          ],
+          "engines": [
+            "semgrep"
+          ],
+          "confidence_tiers": [
+            "medium"
+          ]
+        },
+        {
+          "id": "PAR-038",
+          "file": "transport.py",
+          "line": 1232,
+          "category": "randomness",
+          "label": "benign",
+          "observed": "os.urandom(...) padding",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        },
+        {
+          "id": "PAR-039",
+          "file": "transport.py",
+          "line": 2059,
+          "category": "symmetric",
+          "label": "benign",
+          "observed": "Cipher(algorithm=info['class'](key), mode=info['mode'](iv))",
+          "detected": false,
+          "rules": [],
+          "engines": [],
+          "confidence_tiers": []
+        }
+      ],
+      "uncertain_sites": [
+        {
+          "id": "PAR-040",
+          "file": "ed25519key.py",
+          "line": 131,
+          "category": "symmetric",
+          "label": "uncertain",
+          "observed": "Cipher(cipher['class'](...), cipher['mode'](...))",
+          "flagged": false,
+          "rules": [],
+          "note": "excluded from the confusion matrix (no binary truth)"
+        },
+        {
+          "id": "PAR-041",
+          "file": "pkey.py",
+          "line": 595,
+          "category": "symmetric",
+          "label": "uncertain",
+          "observed": "Cipher(cipher(key), mode(salt)) from _CIPHER_TABLE",
+          "flagged": false,
+          "rules": [],
+          "note": "excluded from the confusion matrix (no binary truth)"
+        }
+      ],
+      "false_positives": [
+        {
+          "file": "config.py",
+          "line": 449,
+          "rule": "weak-crypto-python-sha1",
+          "engine": "semgrep",
+          "confidence_tier": "medium",
+          "evidence_type": "ast_api_pattern",
+          "matches_benign_site": "PAR-036",
+          "ambiguous_attribution": false,
+          "matches_uncertain_site": false
+        },
+        {
+          "file": "hostkeys.py",
+          "line": 296,
+          "rule": "weak-crypto-python-sha1",
+          "engine": "semgrep",
+          "confidence_tier": "medium",
+          "evidence_type": "ast_api_pattern",
+          "matches_benign_site": "PAR-037",
+          "ambiguous_attribution": false,
+          "matches_uncertain_site": false
+        },
+        {
+          "file": "hostkeys.py",
+          "line": 301,
+          "rule": "weak-crypto-python-sha1",
+          "engine": "semgrep",
+          "confidence_tier": "medium",
+          "evidence_type": "ast_api_pattern",
+          "matches_benign_site": null,
+          "ambiguous_attribution": false,
+          "matches_uncertain_site": false
+        }
+      ],
+      "false_negatives": [
+        "PAR-003",
+        "PAR-007",
+        "PAR-013",
+        "PAR-014",
+        "PAR-015",
+        "PAR-016",
+        "PAR-018",
+        "PAR-019",
+        "PAR-023",
+        "PAR-024",
+        "PAR-025",
+        "PAR-026",
+        "PAR-027",
+        "PAR-028",
+        "PAR-029"
+      ],
+      "generated_at": "2026-10-18T19:08:03.759126+00:00",
+      "metric_source": "external-ground-truth",
+      "ruleset": {
+        "version": "ruleset-v2",
+        "sha256": "c3d95c356257b3648d1ff4566ad0b7a2eb9f9eedab95887c48967113a4545493",
+        "rules": 106,
+        "file": "rules.yaml"
+      },
+      "engine_version": "2.3.0",
+      "reproduce": [
+        "git clone --depth 1 --branch 3.5.1 https://github.com/paramiko/paramiko.git /tmp/pqc-ext/paramiko",
+        "python -m benchmark.external_eval --target paramiko --repo /tmp/pqc-ext/paramiko"
+      ]
+    }
+  ]
+}
